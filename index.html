@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing Calculator - Worldwhite Enterprise</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .animate-fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useCallback } = React;
+
+        // --- ICON COMPONENTS ---
+        const IconWrapper = ({ children, size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+
+        // FIX: Menambahkan Icons.List yang sebelumnya hilang
+        const Icons = {
+            Tag: (props) => <IconWrapper {...props}><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></IconWrapper>,
+            Lightbulb: (props) => <IconWrapper {...props}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2 1.5-3.5 0-3-2.5-5-5-5s-5 2-5 5c0 1.5.5 2.5 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></IconWrapper>,
+            Trash2: (props) => <IconWrapper {...props}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconWrapper>,
+            Edit: (props) => <IconWrapper {...props}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></IconWrapper>,
+            Download: (props) => <IconWrapper {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconWrapper>,
+            RefreshCw: (props) => <IconWrapper {...props}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></IconWrapper>,
+            List: (props) => <IconWrapper {...props}><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></IconWrapper>
+        };
+
+        // --- DATA & CONFIGURATION ---
+        const BRAND_TARGETS = {
+            "HEYMALE": 57,
+            "HEYLOCAL": 42,
+            "BOONABOO": 44,
+            "SHUWA": 42
+        };
+
+        const COMPETITOR_DB = {
+            "SCARFS": [
+                { brand: "Buttonscarves", price: 425000 },
+                { brand: "Nada Puspita", price: 335000 },
+                { brand: "Kami Idea", price: 350000 },
+                { brand: "Heaven Light", price: 175000 }
+            ],
+            "BAGS": [
+                { brand: "Buttonscarves", price: 1800000 },
+                { brand: "Kami Idea", price: 950000 },
+                { brand: "Wearing Klamby", price: 850000 },
+                { brand: "Nada Puspita", price: 799000 }
+            ],
+            "PRAYER SETS": [
+                { brand: "Buttonscarves", price: 1500000 },
+                { brand: "Nada Puspita", price: 975000 },
+                { brand: "Wearing Klamby", price: 1200000 },
+                { brand: "Heaven Light", price: 650000 }
+            ],
+            "PARFUME": [
+                { brand: "Buttonscarves", price: 595000 },
+                { brand: "Wearing Klamby", price: 450000 },
+                { brand: "Heaven Light", price: 225000 },
+                { brand: "Heavenscent", price: 199000 }
+            ],
+            "SHOES": [
+                { brand: "Buttonscarves", price: 1975000 },
+                { brand: "Wearing Klamby", price: 950000 },
+                { brand: "Kami Idea", price: 1100000 },
+                { brand: "Nada Puspita", price: 899000 }
+            ],
+            "APPARELS": [
+                { brand: "Wearing Klamby", price: 650000 },
+                { brand: "Kami Idea", price: 750000 },
+                { brand: "Heaven Light", price: 399000 },
+                { brand: "Nada Puspita", price: 475000 }
+            ],
+            "ACCESSORIES": [
+                { brand: "Buttonscarves", price: 475000 },
+                { brand: "Nada Puspita", price: 199000 },
+                { brand: "Wearing Klamby", price: 250000 },
+                { brand: "Kami Idea", price: 225000 }
+            ],
+            "SPORT SERIES": [
+                { brand: "Buttonscarves", price: 475000 },
+                { brand: "Wearing Klamby", price: 295000 },
+                { brand: "Heaven Light", price: 150000 },
+                { brand: "Nada Puspita", price: 225000 }
+            ],
+            "HOME WEAR": [
+                { brand: "Wearing Klamby", price: 350000 },
+                { brand: "Heaven Light", price: 199000 },
+                { brand: "Nada Puspita", price: 299000 },
+                { brand: "Buttonscarves", price: 975000 }
+            ],
+            "INNER WEAR": [
+                { brand: "Buttonscarves", price: 125000 },
+                { brand: "Nada Puspita", price: 85000 },
+                { brand: "Heaven Light", price: 55000 },
+                { brand: "Kami Idea", price: 75000 }
+            ]
+        };
+
+        // --- HELPER FUNCTIONS ---
+        const formatRupiah = (val) => {
+            const number = parseFloat(val);
+            if (val === null || val === undefined || isNaN(number)) return "Rp0";
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(number);
+        };
+
+        const downloadTableAsCSV = (data, filename) => {
+            const csvRows = [];
+            const headers = Object.keys(data[0]);
+            csvRows.push(headers.join(','));
+
+            for (const row of data) {
+                const values = headers.map(header => {
+                    const escaped = ('' + row[header]).replace(/"/g, '\\"');
+                    return `"${escaped}"`;
+                });
+                csvRows.push(values.join(','));
+            }
+
+            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', filename);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
+
+        // --- MAIN APP COMPONENT ---
+        function App() {
+            // Pricing States
+            const [pricingList, setPricingList] = useState([]);
+            const [editingPricingId, setEditingPricingId] = useState(null); 
+            const [isDataLoaded, setIsDataLoaded] = useState(false);
+            
+            // Initial Form State
+            const initialFormState = { 
+                brand: 'HEYLOCAL', 
+                category: '', 
+                articleName: '', 
+                rspWeb: '', 
+                hpp: '', 
+                competitorPrice: '', 
+                platformFee: 17.5, 
+                marketingFee: 15, 
+                otherFee: 0, 
+                notes: '', 
+                manualPrice: '' 
+            };
+            const [pricingForm, setPricingForm] = useState(initialFormState);
+
+            // Load Data from LocalStorage
+            useEffect(() => {
+                const savedPricing = localStorage.getItem('planner_pricing_v3'); 
+                if (savedPricing) setPricingList(JSON.parse(savedPricing));
+                setIsDataLoaded(true);
+            }, []);
+
+            // Save Data to LocalStorage
+            useEffect(() => { 
+                if (isDataLoaded) localStorage.setItem('planner_pricing_v3', JSON.stringify(pricingList)); 
+            }, [pricingList, isDataLoaded]);
+
+            // --- PRICING LOGIC ENGINE ---
+            const pricingResult = useMemo(() => {
+                const { rspWeb, hpp, platformFee, marketingFee, otherFee, competitorPrice, brand, manualPrice } = pricingForm;
+                
+                const safeParse = (val) => {
+                    const parsed = parseFloat(val);
+                    return isNaN(parsed) ? 0 : parsed;
+                };
+
+                const rWeb = safeParse(rspWeb); 
+                const rHpp = safeParse(hpp); 
+                const cPrice = safeParse(competitorPrice);
+                const selectedBrand = brand || 'HEYLOCAL';
+                const target = BRAND_TARGETS[selectedBrand] || 0;
+                
+                // Helper: Pricing Psychology - Charm Pricing
+                const applyCharmPricing = (val) => {
+                    if (val <= 0) return 0;
+                    let rounded = Math.ceil(val / 10000) * 10000;
+                    return rounded - 1000; // e.g. 399.000
+                };
+
+                // 1. Fee Calculation
+                const totalFeePct = safeParse(platformFee) + safeParse(marketingFee) + safeParse(otherFee);
+                const totalFeeDecimal = totalFeePct / 100;
+                
+                // 2. RSP Baru (Ideal Price - Cost Plus Basis)
+                let rspMpRaw = (1 - totalFeeDecimal) > 0.01 ? rWeb / (1 - totalFeeDecimal) : 0;
+                let rspBaru = applyCharmPricing(rspMpRaw); 
+
+                // 3. Biaya Tambahan Baru (Locked Fee Nominal based on Ideal Price)
+                const feeNominalBaru = Math.round(rspBaru * totalFeeDecimal);
+
+                // --- SMART RECOMMENDATION ENGINE (COMPETITOR BASED) ---
+                let recommendation = {
+                    price: 0,
+                    reason: "",
+                    gmPct: 0,
+                    gmAbs: 0,
+                    maxDiscount: 0,
+                    status: 'neutral'
+                };
+
+                // Calculate Minimum Safe Price (Floor Price) to hit Target GM
+                const marginDecimal = target / 100;
+                // Rumus: P = HPP / (1 - fee - margin)
+                const floorPriceRaw = (1 - totalFeeDecimal - marginDecimal) > 0 ? rHpp / (1 - totalFeeDecimal - marginDecimal) : rHpp;
+                
+                let floorPrice = applyCharmPricing(floorPriceRaw);
+                // Jika hasil charm pricing malah di bawah floor raw, naik ke level berikutnya
+                if (floorPrice < floorPriceRaw) {
+                    floorPrice += 10000;
+                }
+
+                if (cPrice > 0) {
+                    if (cPrice > floorPrice) {
+                        // Strategy: Smart Undercut
+                        const gap = 10000; 
+                        let targetPrice = cPrice - gap;
+                        targetPrice = applyCharmPricing(targetPrice);
+                        if (targetPrice < floorPrice) targetPrice = floorPrice;
+
+                        recommendation.price = targetPrice;
+                        recommendation.status = 'good';
+                        
+                        const feeRec = targetPrice * totalFeeDecimal;
+                        recommendation.gmAbs = targetPrice - feeRec - rHpp;
+                        recommendation.gmPct = targetPrice > 0 ? (recommendation.gmAbs / targetPrice) * 100 : 0;
+
+                        recommendation.reason = `Harga kompetitor Rp${formatRupiah(cPrice)} cukup tinggi. \nSistem menyarankan **Rp${formatRupiah(targetPrice)}** (Undercut strategy). \nAnda menang harga (lebih murah Rp${formatRupiah(cPrice-targetPrice)}) tapi margin tetap tebal (${recommendation.gmPct.toFixed(1)}%).`;
+
+                    } else {
+                        // Strategy: Floor Limit (Kompetitor Hancur Harga)
+                        recommendation.price = floorPrice;
+                        recommendation.status = 'warning';
+                        
+                        const feeRec = floorPrice * totalFeeDecimal;
+                        recommendation.gmAbs = floorPrice - feeRec - rHpp;
+                        recommendation.gmPct = floorPrice > 0 ? (recommendation.gmAbs / floorPrice) * 100 : 0;
+
+                        recommendation.reason = `Harga kompetitor Rp${formatRupiah(cPrice)} terlalu rendah (di bawah target margin ${target}%). \nSaran sistem: **Rp${formatRupiah(floorPrice)}** (Batas bawah aman). \nJangan ikuti perang harga di bawah ini agar profit terjaga.`;
+                    }
+                } else {
+                    // No Competitor Data: Use Ideal Cost-Plus Price
+                    recommendation.price = rspBaru;
+                    recommendation.status = 'neutral';
+                    const feeRec = rspBaru * totalFeeDecimal;
+                    recommendation.gmAbs = rspBaru - feeRec - rHpp;
+                    recommendation.gmPct = rspBaru > 0 ? (recommendation.gmAbs / rspBaru) * 100 : 0;
+                    recommendation.reason = "Belum ada data kompetitor. Menggunakan harga ideal berbasis RSP Web.";
+                }
+
+                // Calculate Max Discount for the RECOMMENDED Price
+                if (recommendation.price > floorPrice) {
+                    recommendation.maxDiscount = ((recommendation.price - floorPrice) / recommendation.price) * 100;
+                } else {
+                    recommendation.maxDiscount = 0;
+                }
+
+                // --- MANUAL PRICE CALCULATION (User Input) ---
+                const rspMpSuggest = safeParse(manualPrice) || recommendation.price; 
+                const feeNominalSuggest = rspMpSuggest * totalFeeDecimal; 
+                const gmAbsMp = rspMpSuggest - feeNominalSuggest - rHpp;
+                const gmPctMp = rspMpSuggest > 0 ? (gmAbsMp / rspMpSuggest) * 100 : 0;
+                const naikAbsolute = rspMpSuggest - rWeb;
+
+                // 5. GM Baru (at Ideal Price)
+                const gmAbsBaru = rspBaru - feeNominalBaru - rHpp;
+                const gmPctBaru = rspBaru > 0 ? (gmAbsBaru / rspBaru) * 100 : 0;
+
+                // Web Metrics
+                const webGmAbs = rWeb - rHpp;
+                const webGmPct = rWeb > 0 ? (webGmAbs / rWeb) * 100 : 0;
+
+                return { 
+                    webGmPct, webGmAbs, 
+                    rspBaru, 
+                    feeNominalBaru, 
+                    gmPctBaru, 
+                    recommendation, 
+                    rspMpSuggest,
+                    gmAbsMp,
+                    gmPctMp,
+                    naikAbsolute,
+                    brandTarget: target, 
+                    finalPrice: rspMpSuggest 
+                };
+            }, [pricingForm]);
+
+            // --- EVENT HANDLERS ---
+            const handleCategoryChange = (e) => {
+                const selectedCat = e.target.value;
+                const compData = COMPETITOR_DB[selectedCat];
+                let avgPrice = '';
+                let notes = '';
+
+                if (compData && compData.length > 0) {
+                    const prices = compData.map(c => c.price);
+                    const total = prices.reduce((sum, p) => sum + p, 0);
+                    avgPrice = Math.round(total / prices.length);
+                    notes = `Avg Marketplace Price based on ${compData.length} competitors`;
+                }
+
+                setPricingForm(prev => ({
+                    ...prev,
+                    category: selectedCat,
+                    competitorPrice: avgPrice,
+                    notes: notes
+                }));
+            };
+
+            const handleSavePricing = () => {
+                if (!pricingForm.articleName) return;
+
+                if (editingPricingId) {
+                    setPricingList(pricingList.map(item => 
+                        item.id === editingPricingId 
+                        ? { ...item, ...pricingForm, ...pricingResult, date: new Date().toISOString().split('T')[0] } 
+                        : item
+                    ));
+                    setEditingPricingId(null);
+                } else {
+                    setPricingList([{ id: Date.now(), ...pricingForm, ...pricingResult, date: new Date().toISOString().split('T')[0] }, ...pricingList]);
+                }
+                
+                setPricingForm(initialFormState);
+            };
+
+            const handleEditPricing = (id) => {
+                const item = pricingList.find(p => p.id === id);
+                if (!item) return;
+                
+                setPricingForm({
+                    brand: item.brand,
+                    category: item.category,
+                    articleName: item.articleName,
+                    rspWeb: item.rspWeb,
+                    hpp: item.hpp,
+                    competitorPrice: item.competitorPrice,
+                    platformFee: item.platformFee,
+                    marketingFee: item.marketingFee,
+                    otherFee: item.otherFee || 0, 
+                    notes: item.notes || '',
+                    manualPrice: item.manualPrice
+                });
+                setEditingPricingId(id); 
+                
+                const formElement = document.querySelector('#pricing-form-container');
+                if (formElement) formElement.scrollIntoView({ behavior: 'smooth' });
+            };
+
+            const handleCancelEdit = () => {
+                setEditingPricingId(null);
+                setPricingForm(initialFormState);
+            };
+
+            const handleDeletePricing = (id) => {
+                if (editingPricingId === id) handleCancelEdit(); 
+                setPricingList(pricingList.filter(item => item.id !== id));
+            };
+
+            const confirmResetPricing = () => {
+                if(confirm("Hapus semua data pricing?")) {
+                    setPricingList([]);
+                    setPricingForm(initialFormState);
+                }
+            };
+
+            const handleExportPricing = () => {
+                if (pricingList.length === 0) return;
+                const csvData = pricingList.map(item => ({
+                    "Article Name": item.articleName,
+                    "Brand": item.brand,
+                    "Category": item.category,
+                    "RSP Web": item.rspWeb,
+                    "HPP": item.hpp,
+                    "Web GM %": item.webGmPct ? item.webGmPct.toFixed(2) : 0,
+                    "Web GM Abs": item.webGmAbs,
+                    "Platform Fee": item.platformFee,
+                    "Marketing Fee": item.marketingFee,
+                    "Other Fee": item.otherFee, 
+                    "Competitor Price (MP)": item.competitorPrice,
+                    "Manual Price": item.manualPrice,
+                    "RSP Baru (Ideal)": item.rspBaru,
+                    "RSP MP Suggest": item.rspMpSuggest,
+                    "GM MP %": item.gmPctMp ? item.gmPctMp.toFixed(2) : 0,
+                    "GM MP Abs": item.gmAbsMp,
+                    "Date": item.date
+                }));
+                downloadTableAsCSV(csvData, `Pricing_Export_${new Date().toISOString().slice(0,10)}.csv`);
+            };
+
+            // Calculated Data for UI rendering
+            const selectedCompetitors = COMPETITOR_DB[pricingForm.category] || [];
+            const prices = selectedCompetitors.map(c => c.price);
+            const minPrice = prices.length ? Math.min(...prices) : 0;
+            const maxPrice = prices.length ? Math.max(...prices) : 0;
+            const avgPrice = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
+            const minBrand = selectedCompetitors.find(c => c.price === minPrice)?.brand || '-';
+            const maxBrand = selectedCompetitors.find(c => c.price === maxPrice)?.brand || '-';
+
+            return (
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
+                    
+                    {/* Header */}
+                    <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md tracking-tight">
+                                <Icons.Tag size={24} />
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Pricing Calculator</h1>
+                                <p className="text-sm text-slate-500 font-medium">Margin Analysis & Competitor Benchmarking</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-2 text-sm text-slate-500 bg-slate-100 px-4 py-2 rounded-lg">
+                            <span className="font-semibold text-slate-700">Database:</span> {pricingList.length} items saved
+                        </div>
+                    </div>
+
+                    <div className="space-y-8">
+                        {/* FORM & CALCULATOR SECTION */}
+                        <div id="pricing-form-container" className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Icons.Tag className="text-indigo-600" size={20}/>
+                                    <h3 className="font-bold text-slate-800">{editingPricingId ? 'Edit Pricing Item' : 'New Pricing Calculation'}</h3>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={handleExportPricing} className="px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 flex items-center gap-1 text-xs font-bold transition-colors shadow-sm"><Icons.Download size={14}/> Export CSV</button>
+                                    <button onClick={confirmResetPricing} className="px-3 py-1.5 bg-white border border-slate-300 text-slate-600 rounded-md hover:bg-slate-50 text-xs font-bold transition-colors flex items-center gap-1"><Icons.RefreshCw size={14}/> Reset All</button>
+                                </div>
+                            </div>
+                            
+                            <div className="p-8">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                                    {/* LEFT: INPUTS */}
+                                    <div className="space-y-5">
+                                        <div className="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100 space-y-4">
+                                            <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-2">1. Basic Info</h4>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-700 mb-1.5">Brand Target</label>
+                                                    <select className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" value={pricingForm.brand} onChange={(e) => setPricingForm({...pricingForm, brand: e.target.value})}>
+                                                        {Object.keys(BRAND_TARGETS).map(b => <option key={b} value={b}>{b}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-700 mb-1.5">Target GM (%)</label>
+                                                    <input type="text" className="w-full p-2.5 border border-slate-200 rounded-lg bg-slate-100 text-slate-600 font-bold text-sm" value={BRAND_TARGETS[pricingForm.brand] ? `${BRAND_TARGETS[pricingForm.brand]}%` : '0%'} readOnly />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-700 mb-1.5">Product Category</label>
+                                                <select className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={pricingForm.category} onChange={handleCategoryChange}><option value="">-- Select Category --</option>{Object.keys(COMPETITOR_DB).map(c => <option key={c} value={c}>{c}</option>)}</select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-700 mb-1.5">Article Name</label>
+                                                <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="e.g. Tunic Raya Series A" value={pricingForm.articleName} onChange={(e) => setPricingForm({...pricingForm, articleName: e.target.value})} />
+                                            </div>
+                                        </div>
+
+                                        {/* Competitor Insight Panel */}
+                                        {selectedCompetitors.length > 0 && (
+                                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs space-y-3 shadow-inner">
+                                                <div className="font-bold text-slate-600 uppercase tracking-wide border-b border-slate-200 pb-2 mb-1 flex justify-between">
+                                                    <span>Marketplace Insight ({pricingForm.category})</span>
+                                                    <span className="text-slate-400">{selectedCompetitors.length} Data</span>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-3 text-center">
+                                                    <div className="bg-white p-2.5 rounded border border-emerald-100 shadow-sm">
+                                                        <div className="text-slate-400 text-[10px] uppercase font-bold">Lowest</div>
+                                                        <div className="font-bold text-emerald-600 text-sm mt-1">{formatRupiah(minPrice)}</div>
+                                                        <div className="text-[9px] text-slate-500 truncate mt-0.5">{minBrand}</div>
+                                                    </div>
+                                                    <div className="bg-white p-2.5 rounded border border-blue-100 shadow-sm">
+                                                        <div className="text-slate-400 text-[10px] uppercase font-bold">Average</div>
+                                                        <div className="font-bold text-blue-600 text-sm mt-1">{formatRupiah(avgPrice)}</div>
+                                                        <div className="text-[9px] text-slate-500 mt-0.5">Market Avg</div>
+                                                    </div>
+                                                    <div className="bg-white p-2.5 rounded border border-rose-100 shadow-sm">
+                                                        <div className="text-slate-400 text-[10px] uppercase font-bold">Highest</div>
+                                                        <div className="font-bold text-rose-600 text-sm mt-1">{formatRupiah(maxPrice)}</div>
+                                                        <div className="text-[9px] text-slate-500 truncate mt-0.5">{maxBrand}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-4">
+                                            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">2. Cost & Fees</h4>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div><label className="block text-xs font-bold text-slate-700 mb-1.5">RSP Web (IDR)</label><input type="number" className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={pricingForm.rspWeb} onChange={(e) => setPricingForm({...pricingForm, rspWeb: e.target.value})} placeholder="0" /></div>
+                                                <div><label className="block text-xs font-bold text-slate-700 mb-1.5">HPP (IDR)</label><input type="number" className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={pricingForm.hpp} onChange={(e) => setPricingForm({...pricingForm, hpp: e.target.value})} placeholder="0" /></div>
+                                            </div>
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div><label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Platform %</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-sm text-center" value={pricingForm.platformFee} onChange={(e) => setPricingForm({...pricingForm, platformFee: e.target.value})} /></div>
+                                                <div><label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Marketing %</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-sm text-center" value={pricingForm.marketingFee} onChange={(e) => setPricingForm({...pricingForm, marketingFee: e.target.value})} /></div>
+                                                <div><label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Other %</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-sm text-center" placeholder="0" value={pricingForm.otherFee} onChange={(e) => setPricingForm({...pricingForm, otherFee: e.target.value})} /></div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* RIGHT: ANALYSIS & RESULTS */}
+                                    <div className="flex flex-col justify-between bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-inner h-full">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-5 flex items-center gap-2"><Icons.Lightbulb size={18} className="text-amber-500"/> Pricing Breakdown</h4>
+                                            <div className="space-y-4 text-sm">
+                                                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                                                    <span className="text-slate-600 font-medium">Web GM% <span className="text-xs text-slate-400 font-normal">(Target: {pricingResult.brandTarget}%)</span></span>
+                                                    <div className="text-right">
+                                                        <span className={`font-bold px-2 py-1 rounded text-xs ${pricingResult.webGmPct >= pricingResult.brandTarget ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{Number(pricingResult.webGmPct || 0).toFixed(2)}%</span>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{formatRupiah(pricingResult.webGmAbs)}</div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="flex flex-col gap-3 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-indigo-700 font-bold text-xs uppercase">RSP Ideal (Cost Plus)</span>
+                                                        <span className="text-sm font-mono text-indigo-900 font-bold">{formatRupiah(pricingResult.rspBaru)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-xs border-t border-slate-100 pt-2">
+                                                        <span className="text-slate-500">Locked Fee Nominal</span>
+                                                        <span className="text-slate-700 font-medium">{formatRupiah(pricingResult.feeNominalBaru)}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mb-4">
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">3. Competitor Comparison (IDR)</label>
+                                                    <input type="number" className="w-full p-2.5 text-sm border border-slate-300 rounded-lg bg-white mb-3 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter Competitor Price..." value={pricingForm.competitorPrice} onChange={(e) => setPricingForm({...pricingForm, competitorPrice: e.target.value})} />
+                                                    
+                                                    {/* SYSTEM RECOMMENDATION BLOCK */}
+                                                    <div className={`p-4 rounded-lg border text-xs space-y-3 transition-colors duration-300 ${pricingResult.recommendation.status === 'good' ? 'bg-emerald-50 border-emerald-200' : (pricingResult.recommendation.status === 'warning' ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200')}`}>
+                                                        <div className="flex gap-3">
+                                                            <div className="w-full">
+                                                                <div className="flex justify-between items-start">
+                                                                    <div>
+                                                                        <div className="font-bold text-xs text-slate-500 mb-1 uppercase tracking-wide">System Suggestion</div>
+                                                                        <div className="text-3xl font-bold text-indigo-700 tracking-tight">{formatRupiah(pricingResult.recommendation.price)}</div>
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block ${pricingResult.recommendation.gmPct >= pricingResult.brandTarget ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                                                            GM: {pricingResult.recommendation.gmPct.toFixed(2)}%
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div className="mt-3 mb-2 text-slate-700 leading-relaxed whitespace-pre-line font-medium text-[11px] border-l-2 border-indigo-300 pl-3">
+                                                                    {pricingResult.recommendation.reason}
+                                                                </div>
+
+                                                                <div className="flex justify-between items-center mt-3 pt-3 border-t border-black/5">
+                                                                    <div>
+                                                                        <span className="block text-[10px] text-slate-500 uppercase font-bold">Max Disc Aman</span>
+                                                                        <span className="text-sm font-bold text-slate-700">{pricingResult.recommendation.maxDiscount.toFixed(1)}%</span>
+                                                                    </div>
+                                                                    <button 
+                                                                        onClick={() => setPricingForm({...pricingForm, manualPrice: pricingResult.recommendation.price})}
+                                                                        className="bg-indigo-600 text-white px-3 py-1.5 rounded shadow-sm hover:bg-indigo-700 font-bold text-xs transition-colors"
+                                                                    >
+                                                                        Apply Price
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="bg-slate-800 p-4 rounded-lg text-white">
+                                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Final Manual Price</label>
+                                                    <input type="number" className="w-full p-2 border border-slate-600 rounded bg-slate-700 text-white font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none mb-3" placeholder={pricingResult.recommendation.price} value={pricingForm.manualPrice} onChange={(e) => setPricingForm({...pricingForm, manualPrice: e.target.value})} />
+                                                    
+                                                    <div className="space-y-1 text-xs">
+                                                        <div className="flex justify-between"><span className="text-slate-400">Total Fee Deduction</span><span className="text-rose-400">-{formatRupiah(pricingResult.rspMpSuggest * (parseFloat(pricingForm.platformFee)+parseFloat(pricingForm.marketingFee)+parseFloat(pricingForm.otherFee || 0))/100)}</span></div>
+                                                        <div className="flex justify-between pt-2 border-t border-slate-600 mt-2"><span className="text-slate-300 font-bold">Net Profit (GM Abs)</span><span className="font-bold text-emerald-400">{formatRupiah(pricingResult.gmAbsMp)}</span></div>
+                                                        <div className="flex justify-between"><span className="text-slate-300 font-bold">Net Margin (GM %)</span><span className="font-bold text-emerald-400">{Number(pricingResult.gmPctMp || 0).toFixed(2)}%</span></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-3 mt-6">
+                                            {editingPricingId && (
+                                                <button onClick={handleCancelEdit} className="w-1/3 bg-white border border-slate-300 text-slate-700 py-3 rounded-lg font-bold hover:bg-slate-50 transition-colors">Cancel</button>
+                                            )}
+                                            <button onClick={handleSavePricing} disabled={!pricingForm.articleName} className={`flex-1 text-white py-3 rounded-lg font-bold shadow-md transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${editingPricingId ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-900 hover:bg-slate-800'}`}>
+                                                {editingPricingId ? 'Update Price Record' : 'Save to List'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SAVED RECORDS TABLE */}
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
+                                <Icons.List className="text-slate-500" size={20}/>
+                                <h3 className="font-bold text-slate-800">Saved Records</h3>
+                            </div>
+                            {pricingList.length === 0 ? (
+                                <div className="p-12 text-center flex flex-col items-center justify-center text-slate-400">
+                                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3 text-slate-300">
+                                        <Icons.Tag size={32}/>
+                                    </div>
+                                    <p>No pricing records saved yet.</p>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left min-w-[1000px]">
+                                        <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 text-xs uppercase tracking-wider">
+                                            <tr>
+                                                <th className="px-4 py-3 text-center">Brand</th>
+                                                <th className="px-4 py-3 text-left">Article Name</th>
+                                                <th className="px-4 py-3 text-center">Category</th>
+                                                <th className="px-4 py-3 text-right">RSP Web</th>
+                                                <th className="px-4 py-3 text-right text-slate-400">HPP</th>
+                                                <th className="px-4 py-3 text-center">Target GM</th>
+                                                <th className="px-4 py-3 text-right font-bold text-indigo-900 bg-indigo-50">Final Price (MP)</th>
+                                                <th className="px-4 py-3 text-center font-bold text-emerald-700 bg-emerald-50">Final GM %</th>
+                                                <th className="px-4 py-3 text-center">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {pricingList.map(item => (
+                                                <tr key={item.id} className={`hover:bg-slate-50 transition-colors ${editingPricingId === item.id ? 'bg-indigo-50 hover:bg-indigo-50 border-l-4 border-indigo-500' : ''}`}>
+                                                    <td className="px-4 py-3 text-center font-semibold text-slate-600">{item.brand}</td>
+                                                    <td className="px-4 py-3 font-medium text-slate-800">{item.articleName}</td>
+                                                    <td className="px-4 py-3 text-center text-xs text-slate-500 bg-slate-50 rounded mx-2">{item.category}</td>
+                                                    <td className="px-4 py-3 text-right">{formatRupiah(item.rspWeb)}</td>
+                                                    <td className="px-4 py-3 text-right text-slate-400">{formatRupiah(item.hpp)}</td>
+                                                    <td className="px-4 py-3 text-center text-xs">{BRAND_TARGETS[item.brand]}%</td>
+                                                    <td className="px-4 py-3 text-right font-bold text-indigo-700 bg-indigo-50/30">{formatRupiah(item.rspMpSuggest)}</td>
+                                                    <td className="px-4 py-3 text-center bg-emerald-50/30">
+                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${item.gmPctMp >= BRAND_TARGETS[item.brand] ? 'text-emerald-700 bg-emerald-100' : 'text-rose-700 bg-rose-100'}`}>
+                                                            {Number(item.gmPctMp || 0).toFixed(1)}%
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <button onClick={() => handleEditPricing(item.id)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Edit"><Icons.Edit size={16}/></button>
+                                                            <button onClick={() => handleDeletePricing(item.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors" title="Delete"><Icons.Trash2 size={16}/></button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
