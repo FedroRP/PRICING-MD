@@ -40,7 +40,7 @@
         const { useState, useEffect, useMemo, useCallback } = React;
 
         // --- CONFIGURATION ---
-        // MASUKKAN URL GOOGLE APPS SCRIPT WEB APP ANDA DI SINI
+        // URL Google Apps Script Anda
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz20x9-UZbamv9t0vmpaKnjrk0tkalFXmp15V-ny4Ojlrb1NGZJaad3bH05tW_wf_QZUw/exec"; 
 
         // --- ICON COMPONENTS ---
@@ -59,7 +59,8 @@
             RefreshCw: (props) => <IconWrapper {...props}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></IconWrapper>,
             List: (props) => <IconWrapper {...props}><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></IconWrapper>,
             Sheet: (props) => <IconWrapper {...props}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="3" x2="21" y1="15" y2="15"/><line x1="9" x2="9" y1="9" y2="21"/></IconWrapper>,
-            Cloud: (props) => <IconWrapper {...props}><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M12 13.5V5"/></IconWrapper>
+            Cloud: (props) => <IconWrapper {...props}><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M12 13.5V5"/></IconWrapper>,
+            AlertTriangle: (props) => <IconWrapper {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></IconWrapper>
         };
 
         // --- DATA & CONFIGURATION ---
@@ -70,7 +71,7 @@
             "SHUWA": 42
         };
 
-        // DB 1: WOMEN'S FASHION (Default for HEYLOCAL, BOONABOO, SHUWA)
+        // DB 1: WOMEN'S FASHION
         const GENERAL_COMPETITOR_DB = {
             "SCARFS": [
                 { brand: "Buttonscarves", price: 425000 },
@@ -134,7 +135,7 @@
             ]
         };
 
-        // DB 2: MEN'S FASHION (Specific for HEYMALE)
+        // DB 2: MEN'S FASHION
         const HEYMALE_COMPETITOR_DB = {
             "ACCESSORIES": [
                 { brand: "Eiger", price: 149000 },
@@ -228,6 +229,9 @@
             const [isSaving, setIsSaving] = useState(false);
             const [notification, setNotification] = useState(null);
             
+            // Delete Confirmation State (New)
+            const [deleteConfirmation, setDeleteConfirmation] = useState(null);
+
             // Initial Form State
             const initialFormState = { 
                 brand: 'HEYLOCAL', 
@@ -274,14 +278,8 @@
                 const gm = parseFloat(targetGm) / 100;
                 
                 if (isNaN(h) || h <= 0 || isNaN(gm) || gm >= 1) return '';
-                
-                // Formula: RSP Web = HPP / (1 - Target GM)
                 const rawRsp = h / (1 - gm);
-                
-                // Apply Charm Pricing (e.g., 299.000)
-                // Round up to nearest 10.000, then subtract 1.000
                 const roundedRsp = Math.ceil(rawRsp / 10000) * 10000 - 1000;
-                
                 return roundedRsp;
             };
 
@@ -297,51 +295,30 @@
                 const rWeb = safeParse(rspWeb); 
                 const rHpp = safeParse(hpp); 
                 const cPrice = safeParse(competitorPrice);
-                
                 const target = safeParse(targetGm) || BRAND_TARGETS[brand] || 0;
                 
-                // Helper: Pricing Psychology - Charm Pricing
                 const applyCharmPricing = (val) => {
                     if (val <= 0) return 0;
                     let rounded = Math.ceil(val / 10000) * 10000;
-                    return rounded - 1000; // e.g. 399.000
+                    return rounded - 1000; 
                 };
 
-                // 1. Fee Calculation
                 const totalFeePct = safeParse(platformFee) + safeParse(marketingFee) + safeParse(otherFee);
                 const totalFeeDecimal = totalFeePct / 100;
                 
-                // 2. RSP Baru (Ideal Price - Cost Plus Basis)
                 let rspMpRaw = (1 - totalFeeDecimal) > 0.01 ? rWeb / (1 - totalFeeDecimal) : 0;
                 let rspBaru = applyCharmPricing(rspMpRaw); 
-
-                // 3. Biaya Tambahan Baru (Locked Fee Nominal based on Ideal Price)
                 const feeNominalBaru = Math.round(rspBaru * totalFeeDecimal);
 
-                // --- SMART RECOMMENDATION ENGINE (COMPETITOR BASED) ---
-                let recommendation = {
-                    price: 0,
-                    reason: "",
-                    gmPct: 0,
-                    gmAbs: 0,
-                    maxDiscount: 0,
-                    status: 'neutral'
-                };
+                let recommendation = { price: 0, reason: "", gmPct: 0, gmAbs: 0, maxDiscount: 0, status: 'neutral' };
 
-                // Calculate Minimum Safe Price (Floor Price) to hit Target GM (Custom/Edited)
                 const marginDecimal = target / 100;
-                // Rumus: P = HPP / (1 - fee - margin)
                 const floorPriceRaw = (1 - totalFeeDecimal - marginDecimal) > 0 ? rHpp / (1 - totalFeeDecimal - marginDecimal) : rHpp;
-                
                 let floorPrice = applyCharmPricing(floorPriceRaw);
-                // Jika hasil charm pricing malah di bawah floor raw, naik ke level berikutnya
-                if (floorPrice < floorPriceRaw) {
-                    floorPrice += 10000;
-                }
+                if (floorPrice < floorPriceRaw) floorPrice += 10000;
 
                 if (cPrice > 0) {
                     if (cPrice > floorPrice) {
-                        // Strategy: Smart Undercut
                         const gap = 10000; 
                         let targetPrice = cPrice - gap;
                         targetPrice = applyCharmPricing(targetPrice);
@@ -349,26 +326,19 @@
 
                         recommendation.price = targetPrice;
                         recommendation.status = 'good';
-                        
                         const feeRec = targetPrice * totalFeeDecimal;
                         recommendation.gmAbs = targetPrice - feeRec - rHpp;
                         recommendation.gmPct = targetPrice > 0 ? (recommendation.gmAbs / targetPrice) * 100 : 0;
-
                         recommendation.reason = `Harga kompetitor Rp${formatRupiah(cPrice)} cukup tinggi. \nSistem menyarankan **Rp${formatRupiah(targetPrice)}** (Undercut strategy). \nAnda menang harga (lebih murah Rp${formatRupiah(cPrice-targetPrice)}) tapi margin tetap tebal (${recommendation.gmPct.toFixed(1)}%).`;
-
                     } else {
-                        // Strategy: Floor Limit (Kompetitor Hancur Harga)
                         recommendation.price = floorPrice;
                         recommendation.status = 'warning';
-                        
                         const feeRec = floorPrice * totalFeeDecimal;
                         recommendation.gmAbs = floorPrice - feeRec - rHpp;
                         recommendation.gmPct = floorPrice > 0 ? (recommendation.gmAbs / floorPrice) * 100 : 0;
-
                         recommendation.reason = `Harga kompetitor Rp${formatRupiah(cPrice)} terlalu rendah (di bawah target margin ${target}%). \nSaran sistem: **Rp${formatRupiah(floorPrice)}** (Batas bawah aman). \nJangan ikuti perang harga di bawah ini agar profit terjaga.`;
                     }
                 } else {
-                    // No Competitor Data: Use Ideal Cost-Plus Price
                     recommendation.price = rspBaru;
                     recommendation.status = 'neutral';
                     const feeRec = rspBaru * totalFeeDecimal;
@@ -377,54 +347,36 @@
                     recommendation.reason = "Belum ada data kompetitor. Menggunakan harga ideal berbasis RSP Web.";
                 }
 
-                // Calculate Max Discount for the RECOMMENDED Price
-                if (recommendation.price > floorPrice) {
-                    recommendation.maxDiscount = ((recommendation.price - floorPrice) / recommendation.price) * 100;
+                // Initial maxDiscount calculation (based on recommendation) - will be overridden for Manual Price below
+                if (recommendation.price > 0) {
+                    recommendation.maxDiscount = ((recommendation.price - rWeb) / recommendation.price) * 100;
                 } else {
                     recommendation.maxDiscount = 0;
                 }
 
-                // --- MANUAL PRICE CALCULATION (User Input) ---
                 const rspMpSuggest = safeParse(manualPrice) || rspBaru; 
-                
                 const feeNominalSuggest = rspMpSuggest * totalFeeDecimal; 
                 const gmAbsMp = rspMpSuggest - feeNominalSuggest - rHpp;
                 const gmPctMp = rspMpSuggest > 0 ? (gmAbsMp / rspMpSuggest) * 100 : 0;
                 const naikAbsolute = rspMpSuggest - rWeb;
-
-                // 5. GM Baru (at Ideal Price)
                 const gmAbsBaru = rspBaru - feeNominalBaru - rHpp;
                 const gmPctBaru = rspBaru > 0 ? (gmAbsBaru / rspBaru) * 100 : 0;
-
-                // Web Metrics
                 const webGmAbs = rWeb - rHpp;
                 const webGmPct = rWeb > 0 ? (webGmAbs / rWeb) * 100 : 0;
 
-                // Max Discount for FINAL MANUAL Price
+                // --- NEW LOGIC FOR MAX DISCOUNT ---
                 let maxDiscountSafe = 0;
-                let profitAtFloor = 0;
-                
-                if (rspMpSuggest > floorPriceRaw) {
-                    maxDiscountSafe = ((rspMpSuggest - floorPriceRaw) / rspMpSuggest) * 100;
+                if (rspMpSuggest > 0) {
+                    maxDiscountSafe = ((rspMpSuggest - rWeb) / rspMpSuggest) * 100;
                 }
-                const feeAtFloor = floorPriceRaw * totalFeeDecimal;
-                profitAtFloor = floorPriceRaw - feeAtFloor - rHpp;
-
+                
+                // Profit at Max Disc (from previous request) = RSP WEB - Biaya Tambahan Baru - HPP
+                let profitAtFloor = rWeb - feeNominalBaru - rHpp;
 
                 return { 
-                    webGmPct, webGmAbs, 
-                    rspBaru, 
-                    feeNominalBaru, 
-                    gmPctBaru, 
-                    recommendation, 
-                    rspMpSuggest,
-                    gmAbsMp,
-                    gmPctMp,
-                    naikAbsolute,
-                    brandTarget: target,
-                    maxDiscountSafe,
-                    profitAtFloor,
-                    finalPrice: rspMpSuggest 
+                    webGmPct, webGmAbs, rspBaru, feeNominalBaru, gmPctBaru, recommendation, 
+                    rspMpSuggest, gmAbsMp, gmPctMp, naikAbsolute, brandTarget: target, 
+                    maxDiscountSafe, profitAtFloor, finalPrice: rspMpSuggest 
                 };
             }, [pricingForm]);
 
@@ -433,23 +385,9 @@
             const handleBrandChange = (e) => {
                 const newBrand = e.target.value;
                 const defaultGm = BRAND_TARGETS[newBrand] || 0;
-                
                 setPricingForm(prev => {
-                    const newState = {
-                        ...prev,
-                        brand: newBrand,
-                        targetGm: defaultGm,
-                        // Reset category/competitor info when switching brands (especially important for HEYMALE separation)
-                        category: '',
-                        competitorPrice: '',
-                        notes: ''
-                    };
-                    
-                    // Trigger calc if switching TO Heymale with existing HPP
-                    if (newBrand === 'HEYMALE' && prev.hpp) {
-                        newState.rspWeb = calculateHeymaleRspWeb(prev.hpp, defaultGm);
-                    }
-                    
+                    const newState = { ...prev, brand: newBrand, targetGm: defaultGm, category: '', competitorPrice: '', notes: '' };
+                    if (newBrand === 'HEYMALE' && prev.hpp) newState.rspWeb = calculateHeymaleRspWeb(prev.hpp, defaultGm);
                     return newState;
                 });
             };
@@ -458,11 +396,7 @@
                 const newHpp = e.target.value;
                 setPricingForm(prev => {
                     const newState = { ...prev, hpp: newHpp };
-                    
-                    // Special Logic for HEYMALE
-                    if (prev.brand === 'HEYMALE') {
-                        newState.rspWeb = calculateHeymaleRspWeb(newHpp, prev.targetGm);
-                    }
+                    if (prev.brand === 'HEYMALE') newState.rspWeb = calculateHeymaleRspWeb(newHpp, prev.targetGm);
                     return newState;
                 });
             };
@@ -471,54 +405,35 @@
                 const newGm = e.target.value;
                 setPricingForm(prev => {
                     const newState = { ...prev, targetGm: newGm };
-                    
-                    // Special Logic for HEYMALE
-                    if (prev.brand === 'HEYMALE') {
-                        newState.rspWeb = calculateHeymaleRspWeb(prev.hpp, newGm);
-                    }
+                    if (prev.brand === 'HEYMALE') newState.rspWeb = calculateHeymaleRspWeb(prev.hpp, newGm);
                     return newState;
                 });
             };
 
             const handleCategoryChange = (e) => {
                 const selectedCat = e.target.value;
-                
-                // Use the correct DB based on brand
                 const currentDB = pricingForm.brand === 'HEYMALE' ? HEYMALE_COMPETITOR_DB : GENERAL_COMPETITOR_DB;
                 const compData = currentDB[selectedCat];
-                
                 let avgPrice = '';
                 let notes = '';
-
                 if (compData && compData.length > 0) {
                     const prices = compData.map(c => c.price);
                     const total = prices.reduce((sum, p) => sum + p, 0);
                     avgPrice = Math.round(total / prices.length);
                     notes = `Avg Marketplace Price based on ${compData.length} competitors`;
                 }
-
-                setPricingForm(prev => ({
-                    ...prev,
-                    category: selectedCat,
-                    competitorPrice: avgPrice,
-                    notes: notes
-                }));
+                setPricingForm(prev => ({ ...prev, category: selectedCat, competitorPrice: avgPrice, notes: notes }));
             };
 
-            const saveToGoogleSheet = async (data) => {
+            const sendToGoogleSheet = async (payload) => {
                 if (!GOOGLE_SCRIPT_URL) return;
-                
                 try {
-                    // Send as no-cors to prevent CORS preflight blocking in simple web apps
                     await fetch(GOOGLE_SCRIPT_URL, {
                         method: "POST",
                         mode: "no-cors", 
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify(data)
+                        headers: { "Content-Type": "text/plain" },
+                        body: JSON.stringify(payload)
                     });
-                    // Since no-cors returns opaque response, we assume success if no error thrown
                     return true;
                 } catch (error) {
                     console.error("Error saving to sheet:", error);
@@ -530,31 +445,45 @@
                 if (!pricingForm.articleName) return;
                 setIsSaving(true);
 
-                const newItem = { ...pricingForm, ...pricingResult, date: new Date().toISOString().split('T')[0] };
+                const currentId = editingPricingId || Date.now();
+                const newItem = { id: currentId, ...pricingForm, ...pricingResult, date: new Date().toISOString().split('T')[0] };
 
-                // 1. Save to Google Sheet (Async)
+                // Formatter Helper
+                const fmtNum = (n) => { const val = parseFloat(n); return isNaN(val) ? 0 : Math.round(val); };
+                const fmtPct = (n) => { const val = parseFloat(n); return isNaN(val) ? "0%" : Math.floor(val) + "%"; };
+
+                // Sheet Payload (Formatted)
+                const sheetPayload = {
+                    ...newItem,
+                    rspWeb: fmtNum(newItem.rspWeb),
+                    webGmAbs: fmtNum(newItem.webGmAbs),
+                    hpp: fmtNum(newItem.hpp),
+                    brandTarget: fmtPct(newItem.brandTarget),
+                    rspMpSuggest: fmtNum(newItem.rspMpSuggest),
+                    gmAbsMp: fmtNum(newItem.gmAbsMp),
+                    gmPctMp: fmtPct(newItem.gmPctMp),
+                    maxDiscountSafe: fmtPct(newItem.maxDiscountSafe),
+                    profitAtFloor: fmtNum(newItem.profitAtFloor)
+                };
+
+                const requestPayload = { action: "upsert", ...sheetPayload };
+
                 if (GOOGLE_SCRIPT_URL) {
                     try {
-                        await saveToGoogleSheet(newItem);
+                        await sendToGoogleSheet(requestPayload);
                         setNotification({ type: 'success', message: 'Data synced to Google Sheets!' });
                     } catch (e) {
                         setNotification({ type: 'error', message: 'Failed to sync to Sheets.' });
                     }
-                } else {
-                     // Only warn if not editing and no URL set (optional, just to notify user)
-                     if(!editingPricingId) setNotification({ type: 'warning', message: 'Saved locally. Add Script URL to sync to Sheets.' });
+                } else if(!editingPricingId) {
+                     setNotification({ type: 'warning', message: 'Saved locally. Add Script URL to sync to Sheets.' });
                 }
 
-                // 2. Save to Local State
                 if (editingPricingId) {
-                    setPricingList(pricingList.map(item => 
-                        item.id === editingPricingId 
-                        ? { ...item, ...newItem } 
-                        : item
-                    ));
+                    setPricingList(pricingList.map(item => item.id === editingPricingId ? newItem : item));
                     setEditingPricingId(null);
                 } else {
-                    setPricingList([{ id: Date.now(), ...newItem }, ...pricingList]);
+                    setPricingList([newItem, ...pricingList]);
                 }
                 
                 setPricingForm(initialFormState);
@@ -580,7 +509,6 @@
                     manualPrice: item.manualPrice
                 });
                 setEditingPricingId(id); 
-                
                 const formElement = document.querySelector('#pricing-form-container');
                 if (formElement) formElement.scrollIntoView({ behavior: 'smooth' });
             };
@@ -590,14 +518,38 @@
                 setPricingForm(initialFormState);
             };
 
-            const handleDeletePricing = (id) => {
-                if (editingPricingId === id) handleCancelEdit(); 
-                setPricingList(pricingList.filter(item => item.id !== id));
+            // --- DELETE LOGIC (NEW: With Custom Modal) ---
+            
+            // 1. Triggered when trash icon is clicked
+            const requestDelete = (id) => {
+                setDeleteConfirmation(id); // Show the modal
+            };
+
+            // 2. Triggered when "Yes, Delete" is clicked in modal
+            const confirmDelete = async () => {
+                const idToDelete = deleteConfirmation;
+                setDeleteConfirmation(null); // Close modal immediately
+                setIsSaving(true);
+
+                // Optimistic UI Update (Hapus di layar dulu)
+                if (editingPricingId === idToDelete) handleCancelEdit();
+                setPricingList(prevList => prevList.filter(item => item.id !== idToDelete));
+
+                // Send delete command to server
+                if (GOOGLE_SCRIPT_URL) {
+                    setNotification({ type: 'warning', message: 'Menghapus dari cloud...' });
+                    try {
+                        await sendToGoogleSheet({ action: "delete", id: idToDelete });
+                        setNotification({ type: 'success', message: 'Data berhasil dihapus.' });
+                    } catch (e) {
+                        setNotification({ type: 'error', message: 'Gagal menghapus dari Cloud.' });
+                    }
+                }
+                setIsSaving(false);
             };
 
             const handleExportPricing = () => {
                 if (pricingList.length === 0) return;
-                
                 const csvData = pricingList.map(item => {
                     const target = item.brandTarget || BRAND_TARGETS[item.brand] || 0; 
                     const feePct = parseFloat(item.platformFee) + parseFloat(item.marketingFee) + parseFloat(item.otherFee || 0);
@@ -610,12 +562,18 @@
                     let profAtMax = item.profitAtFloor;
 
                     if(maxDisc === undefined || profAtMax === undefined) {
-                         maxDisc = mpPrice > floorPriceRaw ? ((mpPrice - floorPriceRaw) / mpPrice * 100) : 0;
-                         const feeAtFloor = floorPriceRaw * feeDec;
-                         profAtMax = floorPriceRaw - feeAtFloor - hpp;
+                         // Perhitungan Max Disc baru untuk export juga: (RSP MP - RSP Web) / RSP MP
+                         if (mpPrice > 0) {
+                             maxDisc = ((mpPrice - parseFloat(item.rspWeb)) / mpPrice) * 100;
+                         } else {
+                             maxDisc = 0;
+                         }
+                         const feeNominalBaru = parseFloat(item.feeNominalBaru);
+                         profAtMax = parseFloat(item.rspWeb) - feeNominalBaru - hpp;
                     }
 
                     return {
+                        "ID": item.id,
                         "Article Name": item.articleName,
                         "Brand": item.brand,
                         "Category": item.category,
@@ -646,6 +604,37 @@
             return (
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in relative">
                     
+                    {/* CUSTOM DELETE MODAL */}
+                    {deleteConfirmation && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+                            <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 transform transition-all scale-100">
+                                <div className="flex flex-col items-center text-center">
+                                    <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mb-4 text-rose-600">
+                                        <Icons.AlertTriangle size={24} />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-slate-900 mb-2">Hapus Data Ini?</h3>
+                                    <p className="text-sm text-slate-500 mb-6">
+                                        Tindakan ini akan menghapus data dari aplikasi dan Google Spreadsheet secara permanen.
+                                    </p>
+                                    <div className="flex gap-3 w-full">
+                                        <button 
+                                            onClick={() => setDeleteConfirmation(null)}
+                                            className="flex-1 px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 font-bold hover:bg-slate-50 transition-colors"
+                                        >
+                                            Batal
+                                        </button>
+                                        <button 
+                                            onClick={confirmDelete}
+                                            className="flex-1 px-4 py-2 bg-rose-600 rounded-lg text-white font-bold hover:bg-rose-700 shadow-md transition-colors"
+                                        >
+                                            Ya, Hapus
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* TOAST NOTIFICATION */}
                     {notification && (
                         <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-bold text-sm animate-fade-in flex items-center gap-2 ${notification.type === 'success' ? 'bg-emerald-500' : (notification.type === 'error' ? 'bg-rose-500' : 'bg-slate-700')}`}>
@@ -972,7 +961,7 @@
                                                     <td className="px-4 py-3 text-center">
                                                         <div className="flex items-center justify-center gap-2">
                                                             <button onClick={() => handleEditPricing(item.id)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Edit"><Icons.Edit size={16}/></button>
-                                                            <button onClick={() => handleDeletePricing(item.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors" title="Delete"><Icons.Trash2 size={16}/></button>
+                                                            <button onClick={() => requestDelete(item.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors" title="Delete"><Icons.Trash2 size={16}/></button>
                                                         </div>
                                                     </td>
                                                 </tr>
