@@ -312,42 +312,51 @@
 
                 let recommendation = { price: 0, reason: "", gmPct: 0, gmAbs: 0, maxDiscount: 0, status: 'neutral' };
 
-                const marginDecimal = target / 100;
-                const floorPriceRaw = (1 - totalFeeDecimal - marginDecimal) > 0 ? rHpp / (1 - totalFeeDecimal - marginDecimal) : rHpp;
-                let floorPrice = applyCharmPricing(floorPriceRaw);
-                if (floorPrice < floorPriceRaw) floorPrice += 10000;
+                // --- REVISI LOGIKA FLOOR PRICE (Agar lebih masuk akal) ---
+                // Sebelumnya: Memaksa GM% sama di MP (membuat harga jadi 2.6jt++)
+                // Sekarang: Floor Price = Harga RSP Baru (Web Price + Fee). 
+                // Ini memastikan Net Revenue di MP minimal SAMA dengan di Web.
+                let floorPrice = rspBaru; 
 
                 if (cPrice > 0) {
                     if (cPrice > floorPrice) {
                         const gap = 10000; 
                         let targetPrice = cPrice - gap;
                         targetPrice = applyCharmPricing(targetPrice);
+                        // Jangan sampai undercut di bawah harga modal web+fee
                         if (targetPrice < floorPrice) targetPrice = floorPrice;
 
                         recommendation.price = targetPrice;
                         recommendation.status = 'good';
+                        
                         const feeRec = targetPrice * totalFeeDecimal;
                         recommendation.gmAbs = targetPrice - feeRec - rHpp;
                         recommendation.gmPct = targetPrice > 0 ? (recommendation.gmAbs / targetPrice) * 100 : 0;
-                        recommendation.reason = `Harga kompetitor Rp${formatRupiah(cPrice)} cukup tinggi. \nSistem menyarankan **Rp${formatRupiah(targetPrice)}** (Undercut strategy). \nAnda menang harga (lebih murah Rp${formatRupiah(cPrice-targetPrice)}) tapi margin tetap tebal (${recommendation.gmPct.toFixed(1)}%).`;
+
+                        recommendation.reason = `Harga kompetitor Rp${formatRupiah(cPrice)} cukup tinggi. \nSistem menyarankan **Rp${formatRupiah(targetPrice)}** (Strategi Undercut). \nAnda menang harga (lebih murah Rp${formatRupiah(cPrice-targetPrice)}) dan nilai web terjaga.`;
+
                     } else {
+                        // Strategy: Floor Limit (Kompetitor Hancur Harga)
                         recommendation.price = floorPrice;
                         recommendation.status = 'warning';
+                        
                         const feeRec = floorPrice * totalFeeDecimal;
                         recommendation.gmAbs = floorPrice - feeRec - rHpp;
                         recommendation.gmPct = floorPrice > 0 ? (recommendation.gmAbs / floorPrice) * 100 : 0;
-                        recommendation.reason = `Harga kompetitor Rp${formatRupiah(cPrice)} terlalu rendah (di bawah target margin ${target}%). \nSaran sistem: **Rp${formatRupiah(floorPrice)}** (Batas bawah aman). \nJangan ikuti perang harga di bawah ini agar profit terjaga.`;
+
+                        recommendation.reason = `Harga kompetitor Rp${formatRupiah(cPrice)} terlalu rendah (di bawah harga Web + Fee). \nSaran sistem: **Rp${formatRupiah(floorPrice)}** (Proteksi Nilai Web). \nJangan ikuti perang harga di bawah ini agar profit web tidak tergerus.`;
                     }
                 } else {
+                    // No Competitor Data: Use Ideal Cost-Plus Price
                     recommendation.price = rspBaru;
                     recommendation.status = 'neutral';
                     const feeRec = rspBaru * totalFeeDecimal;
                     recommendation.gmAbs = rspBaru - feeRec - rHpp;
                     recommendation.gmPct = rspBaru > 0 ? (recommendation.gmAbs / rspBaru) * 100 : 0;
-                    recommendation.reason = "Belum ada data kompetitor. Menggunakan harga ideal berbasis RSP Web.";
+                    recommendation.reason = "Belum ada data kompetitor. Menggunakan harga ideal (RSP Web + Fee).";
                 }
 
-                // Initial maxDiscount calculation (based on recommendation) - will be overridden for Manual Price below
+                // Initial maxDiscount calculation (based on recommendation)
                 if (recommendation.price > 0) {
                     recommendation.maxDiscount = ((recommendation.price - rWeb) / recommendation.price) * 100;
                 } else {
@@ -365,12 +374,15 @@
                 const webGmPct = rWeb > 0 ? (webGmAbs / rWeb) * 100 : 0;
 
                 // --- NEW LOGIC FOR MAX DISCOUNT ---
+                // Rumus: (RSP MP - RSP WEB) / RSP MP
                 let maxDiscountSafe = 0;
                 if (rspMpSuggest > 0) {
                     maxDiscountSafe = ((rspMpSuggest - rWeb) / rspMpSuggest) * 100;
                 }
                 
-                // Profit at Max Disc (from previous request) = RSP WEB - Biaya Tambahan Baru - HPP
+                // Profit at Max Disc = RSP WEB - Biaya Tambahan Baru - HPP
+                // (Ini asumsi diskon maksimal diberikan sehingga harga jual bersih jadi setara Web Net, tapi fee admin tetap dihitung dari harga jual awal/diskon?? 
+                // Biasanya marketplace hitung fee dari harga setelah diskon, tapi untuk aman pakai fee nominal awal)
                 let profitAtFloor = rWeb - feeNominalBaru - rHpp;
 
                 return { 
