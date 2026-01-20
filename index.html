@@ -24,6 +24,13 @@
         
         .animate-fade-in { animation: fadeIn 0.5s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Hide number input arrows */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans">
@@ -31,6 +38,10 @@
 
     <script type="text/babel">
         const { useState, useEffect, useMemo, useCallback } = React;
+
+        // --- CONFIGURATION ---
+        // MASUKKAN URL GOOGLE APPS SCRIPT WEB APP ANDA DI SINI
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz20x9-UZbamv9t0vmpaKnjrk0tkalFXmp15V-ny4Ojlrb1NGZJaad3bH05tW_wf_QZUw/exec"; 
 
         // --- ICON COMPONENTS ---
         const IconWrapper = ({ children, size = 24, className = "" }) => (
@@ -46,7 +57,9 @@
             Edit: (props) => <IconWrapper {...props}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></IconWrapper>,
             Download: (props) => <IconWrapper {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconWrapper>,
             RefreshCw: (props) => <IconWrapper {...props}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></IconWrapper>,
-            List: (props) => <IconWrapper {...props}><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></IconWrapper>
+            List: (props) => <IconWrapper {...props}><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></IconWrapper>,
+            Sheet: (props) => <IconWrapper {...props}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="3" x2="21" y1="15" y2="15"/><line x1="9" x2="9" y1="9" y2="21"/></IconWrapper>,
+            Cloud: (props) => <IconWrapper {...props}><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M12 13.5V5"/></IconWrapper>
         };
 
         // --- DATA & CONFIGURATION ---
@@ -177,7 +190,7 @@
         const formatRupiah = (val) => {
             const number = parseFloat(val);
             if (val === null || val === undefined || isNaN(number)) return "Rp0";
-            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(number);
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(number);
         };
 
         const downloadTableAsCSV = (data, filename) => {
@@ -211,6 +224,10 @@
             const [editingPricingId, setEditingPricingId] = useState(null); 
             const [isDataLoaded, setIsDataLoaded] = useState(false);
             
+            // Sync States
+            const [isSaving, setIsSaving] = useState(false);
+            const [notification, setNotification] = useState(null);
+            
             // Initial Form State
             const initialFormState = { 
                 brand: 'HEYLOCAL', 
@@ -242,6 +259,14 @@
             useEffect(() => { 
                 if (isDataLoaded) localStorage.setItem('planner_pricing_v3', JSON.stringify(pricingList)); 
             }, [pricingList, isDataLoaded]);
+
+            // Clear notification after 3s
+            useEffect(() => {
+                if (notification) {
+                    const timer = setTimeout(() => setNotification(null), 3000);
+                    return () => clearTimeout(timer);
+                }
+            }, [notification]);
 
             // --- SPECIAL LOGIC FOR HEYMALE RSP CALCULATION ---
             const calculateHeymaleRspWeb = (hpp, targetGm) => {
@@ -480,21 +505,60 @@
                 }));
             };
 
-            const handleSavePricing = () => {
-                if (!pricingForm.articleName) return;
+            const saveToGoogleSheet = async (data) => {
+                if (!GOOGLE_SCRIPT_URL) return;
+                
+                try {
+                    // Send as no-cors to prevent CORS preflight blocking in simple web apps
+                    await fetch(GOOGLE_SCRIPT_URL, {
+                        method: "POST",
+                        mode: "no-cors", 
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    // Since no-cors returns opaque response, we assume success if no error thrown
+                    return true;
+                } catch (error) {
+                    console.error("Error saving to sheet:", error);
+                    return false;
+                }
+            };
 
+            const handleSavePricing = async () => {
+                if (!pricingForm.articleName) return;
+                setIsSaving(true);
+
+                const newItem = { ...pricingForm, ...pricingResult, date: new Date().toISOString().split('T')[0] };
+
+                // 1. Save to Google Sheet (Async)
+                if (GOOGLE_SCRIPT_URL) {
+                    try {
+                        await saveToGoogleSheet(newItem);
+                        setNotification({ type: 'success', message: 'Data synced to Google Sheets!' });
+                    } catch (e) {
+                        setNotification({ type: 'error', message: 'Failed to sync to Sheets.' });
+                    }
+                } else {
+                     // Only warn if not editing and no URL set (optional, just to notify user)
+                     if(!editingPricingId) setNotification({ type: 'warning', message: 'Saved locally. Add Script URL to sync to Sheets.' });
+                }
+
+                // 2. Save to Local State
                 if (editingPricingId) {
                     setPricingList(pricingList.map(item => 
                         item.id === editingPricingId 
-                        ? { ...item, ...pricingForm, ...pricingResult, date: new Date().toISOString().split('T')[0] } 
+                        ? { ...item, ...newItem } 
                         : item
                     ));
                     setEditingPricingId(null);
                 } else {
-                    setPricingList([{ id: Date.now(), ...pricingForm, ...pricingResult, date: new Date().toISOString().split('T')[0] }, ...pricingList]);
+                    setPricingList([{ id: Date.now(), ...newItem }, ...pricingList]);
                 }
                 
                 setPricingForm(initialFormState);
+                setIsSaving(false);
             };
 
             const handleEditPricing = (id) => {
@@ -580,8 +644,16 @@
             const maxBrand = selectedCompetitors.find(c => c.price === maxPrice)?.brand || '-';
 
             return (
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in relative">
                     
+                    {/* TOAST NOTIFICATION */}
+                    {notification && (
+                        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-bold text-sm animate-fade-in flex items-center gap-2 ${notification.type === 'success' ? 'bg-emerald-500' : (notification.type === 'error' ? 'bg-rose-500' : 'bg-slate-700')}`}>
+                            {notification.type === 'success' && <Icons.Cloud size={18}/>}
+                            {notification.message}
+                        </div>
+                    )}
+
                     {/* Header */}
                     <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
                         <div className="flex items-center gap-3">
@@ -593,8 +665,15 @@
                                 <p className="text-sm text-slate-500 font-medium">Margin Analysis & Competitor Benchmarking</p>
                             </div>
                         </div>
-                        <div className="flex gap-2 text-sm text-slate-500 bg-slate-100 px-4 py-2 rounded-lg">
-                            <span className="font-semibold text-slate-700">Database:</span> {pricingList.length} items saved
+                        <div className="flex gap-2 items-center">
+                            {!GOOGLE_SCRIPT_URL && (
+                                <div className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-md border border-amber-200 font-bold hidden sm:block">
+                                    Offline Mode (No Sheet URL)
+                                </div>
+                            )}
+                            <div className="flex gap-2 text-sm text-slate-500 bg-slate-100 px-4 py-2 rounded-lg">
+                                <span className="font-semibold text-slate-700">Database:</span> {pricingList.length} items saved
+                            </div>
                         </div>
                     </div>
 
@@ -796,10 +875,14 @@
                                         </div>
                                         <div className="flex gap-3 mt-6">
                                             {editingPricingId && (
-                                                <button onClick={handleCancelEdit} className="w-1/3 bg-white border border-slate-300 text-slate-700 py-3 rounded-lg font-bold hover:bg-slate-50 transition-colors">Cancel</button>
+                                                <button onClick={handleCancelEdit} disabled={isSaving} className="w-1/3 bg-white border border-slate-300 text-slate-700 py-3 rounded-lg font-bold hover:bg-slate-50 transition-colors disabled:opacity-50">Cancel</button>
                                             )}
-                                            <button onClick={handleSavePricing} disabled={!pricingForm.articleName} className={`flex-1 text-white py-3 rounded-lg font-bold shadow-md transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${editingPricingId ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-900 hover:bg-slate-800'}`}>
-                                                {editingPricingId ? 'Update Price Record' : 'Save to List'}
+                                            <button onClick={handleSavePricing} disabled={!pricingForm.articleName || isSaving} className={`flex-1 text-white py-3 rounded-lg font-bold shadow-md transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${editingPricingId ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-900 hover:bg-slate-800'}`}>
+                                                {isSaving ? (
+                                                    <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Saving...</>
+                                                ) : (
+                                                    <>{editingPricingId ? 'Update Price Record' : 'Save to List'}</>
+                                                )}
                                             </button>
                                         </div>
                                     </div>
