@@ -39,7 +39,6 @@
             </svg>
         );
 
-        // FIX: Menambahkan Icons.List yang sebelumnya hilang
         const Icons = {
             Tag: (props) => <IconWrapper {...props}><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></IconWrapper>,
             Lightbulb: (props) => <IconWrapper {...props}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2 1.5-3.5 0-3-2.5-5-5-5s-5 2-5 5c0 1.5.5 2.5 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></IconWrapper>,
@@ -58,7 +57,8 @@
             "SHUWA": 42
         };
 
-        const COMPETITOR_DB = {
+        // DB 1: WOMEN'S FASHION (Default for HEYLOCAL, BOONABOO, SHUWA)
+        const GENERAL_COMPETITOR_DB = {
             "SCARFS": [
                 { brand: "Buttonscarves", price: 425000 },
                 { brand: "Nada Puspita", price: 335000 },
@@ -121,6 +121,58 @@
             ]
         };
 
+        // DB 2: MEN'S FASHION (Specific for HEYMALE)
+        const HEYMALE_COMPETITOR_DB = {
+            "ACCESSORIES": [
+                { brand: "Eiger", price: 149000 },
+                { brand: "Kalibre", price: 199000 },
+                { brand: "Bodypack", price: 125000 },
+                { brand: "Roughneck 1991", price: 89000 }
+            ],
+            "JACKETS": [
+                { brand: "Erigo", price: 350000 },
+                { brand: "Roughneck 1991", price: 299000 },
+                { brand: "Maternal Disaster", price: 420000 },
+                { brand: "Sch.", price: 450000 }
+            ],
+            "KNITWEAR": [
+                { brand: "Uniqlo", price: 399000 },
+                { brand: "H&M", price: 349000 },
+                { brand: "Gomuda", price: 249000 },
+                { brand: "Local Knit", price: 199000 }
+            ],
+            "PANTS": [
+                { brand: "Smith Berlin", price: 289000 },
+                { brand: "Erigo", price: 185000 },
+                { brand: "House of Smith", price: 320000 },
+                { brand: "Livehaf", price: 199000 }
+            ],
+            "PERFUMES": [
+                { brand: "Kahf", price: 75000 },
+                { brand: "HMNS", price: 320000 },
+                { brand: "Onix", price: 189000 },
+                { brand: "Saff & Co", price: 249000 }
+            ],
+            "POLO SHIRTS": [
+                { brand: "Crocodile (Local)", price: 250000 },
+                { brand: "M231", price: 149000 },
+                { brand: "Platini", price: 120000 },
+                { brand: "Uniqlo", price: 299000 }
+            ],
+            "SHIRTS": [
+                { brand: "M231", price: 189000 },
+                { brand: "Alisan", price: 160000 },
+                { brand: "Platini", price: 150000 },
+                { brand: "Fargo", price: 175000 }
+            ],
+            "TEES": [
+                { brand: "Aerostreet", price: 79000 },
+                { brand: "Erigo", price: 99000 },
+                { brand: "Maternal", price: 165000 },
+                { brand: "Roughneck", price: 88000 }
+            ]
+        };
+
         // --- HELPER FUNCTIONS ---
         const formatRupiah = (val) => {
             const number = parseFloat(val);
@@ -162,6 +214,7 @@
             // Initial Form State
             const initialFormState = { 
                 brand: 'HEYLOCAL', 
+                targetGm: 42, 
                 category: '', 
                 articleName: '', 
                 rspWeb: '', 
@@ -175,6 +228,9 @@
             };
             const [pricingForm, setPricingForm] = useState(initialFormState);
 
+            // Determine active Competitor DB based on selected Brand
+            const activeCompetitorDB = pricingForm.brand === 'HEYMALE' ? HEYMALE_COMPETITOR_DB : GENERAL_COMPETITOR_DB;
+
             // Load Data from LocalStorage
             useEffect(() => {
                 const savedPricing = localStorage.getItem('planner_pricing_v3'); 
@@ -187,9 +243,26 @@
                 if (isDataLoaded) localStorage.setItem('planner_pricing_v3', JSON.stringify(pricingList)); 
             }, [pricingList, isDataLoaded]);
 
+            // --- SPECIAL LOGIC FOR HEYMALE RSP CALCULATION ---
+            const calculateHeymaleRspWeb = (hpp, targetGm) => {
+                const h = parseFloat(hpp);
+                const gm = parseFloat(targetGm) / 100;
+                
+                if (isNaN(h) || h <= 0 || isNaN(gm) || gm >= 1) return '';
+                
+                // Formula: RSP Web = HPP / (1 - Target GM)
+                const rawRsp = h / (1 - gm);
+                
+                // Apply Charm Pricing (e.g., 299.000)
+                // Round up to nearest 10.000, then subtract 1.000
+                const roundedRsp = Math.ceil(rawRsp / 10000) * 10000 - 1000;
+                
+                return roundedRsp;
+            };
+
             // --- PRICING LOGIC ENGINE ---
             const pricingResult = useMemo(() => {
-                const { rspWeb, hpp, platformFee, marketingFee, otherFee, competitorPrice, brand, manualPrice } = pricingForm;
+                const { rspWeb, hpp, platformFee, marketingFee, otherFee, competitorPrice, brand, manualPrice, targetGm } = pricingForm;
                 
                 const safeParse = (val) => {
                     const parsed = parseFloat(val);
@@ -199,8 +272,8 @@
                 const rWeb = safeParse(rspWeb); 
                 const rHpp = safeParse(hpp); 
                 const cPrice = safeParse(competitorPrice);
-                const selectedBrand = brand || 'HEYLOCAL';
-                const target = BRAND_TARGETS[selectedBrand] || 0;
+                
+                const target = safeParse(targetGm) || BRAND_TARGETS[brand] || 0;
                 
                 // Helper: Pricing Psychology - Charm Pricing
                 const applyCharmPricing = (val) => {
@@ -230,7 +303,7 @@
                     status: 'neutral'
                 };
 
-                // Calculate Minimum Safe Price (Floor Price) to hit Target GM
+                // Calculate Minimum Safe Price (Floor Price) to hit Target GM (Custom/Edited)
                 const marginDecimal = target / 100;
                 // Rumus: P = HPP / (1 - fee - margin)
                 const floorPriceRaw = (1 - totalFeeDecimal - marginDecimal) > 0 ? rHpp / (1 - totalFeeDecimal - marginDecimal) : rHpp;
@@ -287,7 +360,8 @@
                 }
 
                 // --- MANUAL PRICE CALCULATION (User Input) ---
-                const rspMpSuggest = safeParse(manualPrice) || recommendation.price; 
+                const rspMpSuggest = safeParse(manualPrice) || rspBaru; 
+                
                 const feeNominalSuggest = rspMpSuggest * totalFeeDecimal; 
                 const gmAbsMp = rspMpSuggest - feeNominalSuggest - rHpp;
                 const gmPctMp = rspMpSuggest > 0 ? (gmAbsMp / rspMpSuggest) * 100 : 0;
@@ -301,6 +375,17 @@
                 const webGmAbs = rWeb - rHpp;
                 const webGmPct = rWeb > 0 ? (webGmAbs / rWeb) * 100 : 0;
 
+                // Max Discount for FINAL MANUAL Price
+                let maxDiscountSafe = 0;
+                let profitAtFloor = 0;
+                
+                if (rspMpSuggest > floorPriceRaw) {
+                    maxDiscountSafe = ((rspMpSuggest - floorPriceRaw) / rspMpSuggest) * 100;
+                }
+                const feeAtFloor = floorPriceRaw * totalFeeDecimal;
+                profitAtFloor = floorPriceRaw - feeAtFloor - rHpp;
+
+
                 return { 
                     webGmPct, webGmAbs, 
                     rspBaru, 
@@ -311,15 +396,72 @@
                     gmAbsMp,
                     gmPctMp,
                     naikAbsolute,
-                    brandTarget: target, 
+                    brandTarget: target,
+                    maxDiscountSafe,
+                    profitAtFloor,
                     finalPrice: rspMpSuggest 
                 };
             }, [pricingForm]);
 
             // --- EVENT HANDLERS ---
+            
+            const handleBrandChange = (e) => {
+                const newBrand = e.target.value;
+                const defaultGm = BRAND_TARGETS[newBrand] || 0;
+                
+                setPricingForm(prev => {
+                    const newState = {
+                        ...prev,
+                        brand: newBrand,
+                        targetGm: defaultGm,
+                        // Reset category/competitor info when switching brands (especially important for HEYMALE separation)
+                        category: '',
+                        competitorPrice: '',
+                        notes: ''
+                    };
+                    
+                    // Trigger calc if switching TO Heymale with existing HPP
+                    if (newBrand === 'HEYMALE' && prev.hpp) {
+                        newState.rspWeb = calculateHeymaleRspWeb(prev.hpp, defaultGm);
+                    }
+                    
+                    return newState;
+                });
+            };
+
+            const handleHppChange = (e) => {
+                const newHpp = e.target.value;
+                setPricingForm(prev => {
+                    const newState = { ...prev, hpp: newHpp };
+                    
+                    // Special Logic for HEYMALE
+                    if (prev.brand === 'HEYMALE') {
+                        newState.rspWeb = calculateHeymaleRspWeb(newHpp, prev.targetGm);
+                    }
+                    return newState;
+                });
+            };
+
+            const handleTargetGmChange = (e) => {
+                const newGm = e.target.value;
+                setPricingForm(prev => {
+                    const newState = { ...prev, targetGm: newGm };
+                    
+                    // Special Logic for HEYMALE
+                    if (prev.brand === 'HEYMALE') {
+                        newState.rspWeb = calculateHeymaleRspWeb(prev.hpp, newGm);
+                    }
+                    return newState;
+                });
+            };
+
             const handleCategoryChange = (e) => {
                 const selectedCat = e.target.value;
-                const compData = COMPETITOR_DB[selectedCat];
+                
+                // Use the correct DB based on brand
+                const currentDB = pricingForm.brand === 'HEYMALE' ? HEYMALE_COMPETITOR_DB : GENERAL_COMPETITOR_DB;
+                const compData = currentDB[selectedCat];
+                
                 let avgPrice = '';
                 let notes = '';
 
@@ -361,6 +503,7 @@
                 
                 setPricingForm({
                     brand: item.brand,
+                    targetGm: item.brandTarget || BRAND_TARGETS[item.brand], 
                     category: item.category,
                     articleName: item.articleName,
                     rspWeb: item.rspWeb,
@@ -388,39 +531,47 @@
                 setPricingList(pricingList.filter(item => item.id !== id));
             };
 
-            const confirmResetPricing = () => {
-                if(confirm("Hapus semua data pricing?")) {
-                    setPricingList([]);
-                    setPricingForm(initialFormState);
-                }
-            };
-
             const handleExportPricing = () => {
                 if (pricingList.length === 0) return;
-                const csvData = pricingList.map(item => ({
-                    "Article Name": item.articleName,
-                    "Brand": item.brand,
-                    "Category": item.category,
-                    "RSP Web": item.rspWeb,
-                    "HPP": item.hpp,
-                    "Web GM %": item.webGmPct ? item.webGmPct.toFixed(2) : 0,
-                    "Web GM Abs": item.webGmAbs,
-                    "Platform Fee": item.platformFee,
-                    "Marketing Fee": item.marketingFee,
-                    "Other Fee": item.otherFee, 
-                    "Competitor Price (MP)": item.competitorPrice,
-                    "Manual Price": item.manualPrice,
-                    "RSP Baru (Ideal)": item.rspBaru,
-                    "RSP MP Suggest": item.rspMpSuggest,
-                    "GM MP %": item.gmPctMp ? item.gmPctMp.toFixed(2) : 0,
-                    "GM MP Abs": item.gmAbsMp,
-                    "Date": item.date
-                }));
+                
+                const csvData = pricingList.map(item => {
+                    const target = item.brandTarget || BRAND_TARGETS[item.brand] || 0; 
+                    const feePct = parseFloat(item.platformFee) + parseFloat(item.marketingFee) + parseFloat(item.otherFee || 0);
+                    const feeDec = feePct / 100;
+                    const hpp = parseFloat(item.hpp);
+                    const mpPrice = parseFloat(item.rspMpSuggest);
+                    const floorPriceRaw = hpp / (1 - feeDec - (target/100));
+                    
+                    let maxDisc = item.maxDiscountSafe;
+                    let profAtMax = item.profitAtFloor;
+
+                    if(maxDisc === undefined || profAtMax === undefined) {
+                         maxDisc = mpPrice > floorPriceRaw ? ((mpPrice - floorPriceRaw) / mpPrice * 100) : 0;
+                         const feeAtFloor = floorPriceRaw * feeDec;
+                         profAtMax = floorPriceRaw - feeAtFloor - hpp;
+                    }
+
+                    return {
+                        "Article Name": item.articleName,
+                        "Brand": item.brand,
+                        "Category": item.category,
+                        "RSP Web": item.rspWeb,
+                        "Profit Web": item.webGmAbs, 
+                        "HPP": item.hpp,
+                        "Target GM": `${target}%`, 
+                        "RSP MP": item.rspMpSuggest,
+                        "Profit MP": item.gmAbsMp, 
+                        "GM MP %": item.gmPctMp ? item.gmPctMp.toFixed(2) : 0,
+                        "Max Disc %": maxDisc.toFixed(2), 
+                        "Profit at Max Disc": profAtMax, 
+                        "Date": item.date
+                    };
+                });
                 downloadTableAsCSV(csvData, `Pricing_Export_${new Date().toISOString().slice(0,10)}.csv`);
             };
 
-            // Calculated Data for UI rendering
-            const selectedCompetitors = COMPETITOR_DB[pricingForm.category] || [];
+            // Calculate active competitors for display based on active DB
+            const selectedCompetitors = activeCompetitorDB[pricingForm.category] || [];
             const prices = selectedCompetitors.map(c => c.price);
             const minPrice = prices.length ? Math.min(...prices) : 0;
             const maxPrice = prices.length ? Math.max(...prices) : 0;
@@ -455,10 +606,6 @@
                                     <Icons.Tag className="text-indigo-600" size={20}/>
                                     <h3 className="font-bold text-slate-800">{editingPricingId ? 'Edit Pricing Item' : 'New Pricing Calculation'}</h3>
                                 </div>
-                                <div className="flex gap-2">
-                                    <button onClick={handleExportPricing} className="px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 flex items-center gap-1 text-xs font-bold transition-colors shadow-sm"><Icons.Download size={14}/> Export CSV</button>
-                                    <button onClick={confirmResetPricing} className="px-3 py-1.5 bg-white border border-slate-300 text-slate-600 rounded-md hover:bg-slate-50 text-xs font-bold transition-colors flex items-center gap-1"><Icons.RefreshCw size={14}/> Reset All</button>
-                                </div>
                             </div>
                             
                             <div className="p-8">
@@ -470,18 +617,26 @@
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-700 mb-1.5">Brand Target</label>
-                                                    <select className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" value={pricingForm.brand} onChange={(e) => setPricingForm({...pricingForm, brand: e.target.value})}>
+                                                    <select className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" value={pricingForm.brand} onChange={handleBrandChange}>
                                                         {Object.keys(BRAND_TARGETS).map(b => <option key={b} value={b}>{b}</option>)}
                                                     </select>
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-700 mb-1.5">Target GM (%)</label>
-                                                    <input type="text" className="w-full p-2.5 border border-slate-200 rounded-lg bg-slate-100 text-slate-600 font-bold text-sm" value={BRAND_TARGETS[pricingForm.brand] ? `${BRAND_TARGETS[pricingForm.brand]}%` : '0%'} readOnly />
+                                                    <input 
+                                                        type="number" 
+                                                        className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-slate-800 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" 
+                                                        value={pricingForm.targetGm}
+                                                        onChange={handleTargetGmChange}
+                                                    />
                                                 </div>
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-bold text-slate-700 mb-1.5">Product Category</label>
-                                                <select className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={pricingForm.category} onChange={handleCategoryChange}><option value="">-- Select Category --</option>{Object.keys(COMPETITOR_DB).map(c => <option key={c} value={c}>{c}</option>)}</select>
+                                                <select className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={pricingForm.category} onChange={handleCategoryChange}>
+                                                    <option value="">-- Select Category --</option>
+                                                    {Object.keys(activeCompetitorDB).map(c => <option key={c} value={c}>{c}</option>)}
+                                                </select>
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-bold text-slate-700 mb-1.5">Article Name</label>
@@ -519,8 +674,30 @@
                                         <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-4">
                                             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">2. Cost & Fees</h4>
                                             <div className="grid grid-cols-2 gap-4">
-                                                <div><label className="block text-xs font-bold text-slate-700 mb-1.5">RSP Web (IDR)</label><input type="number" className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={pricingForm.rspWeb} onChange={(e) => setPricingForm({...pricingForm, rspWeb: e.target.value})} placeholder="0" /></div>
-                                                <div><label className="block text-xs font-bold text-slate-700 mb-1.5">HPP (IDR)</label><input type="number" className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={pricingForm.hpp} onChange={(e) => setPricingForm({...pricingForm, hpp: e.target.value})} placeholder="0" /></div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-700 mb-1.5 flex justify-between">
+                                                        RSP Web (IDR)
+                                                        {pricingForm.brand === 'HEYMALE' && <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-bold animate-pulse">AUTO CALCULATED</span>}
+                                                    </label>
+                                                    <input 
+                                                        type="number" 
+                                                        className={`w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${pricingForm.brand === 'HEYMALE' ? 'bg-indigo-50 text-indigo-800 font-bold border-indigo-200 cursor-not-allowed' : ''}`}
+                                                        value={pricingForm.rspWeb} 
+                                                        onChange={(e) => setPricingForm({...pricingForm, rspWeb: e.target.value})} 
+                                                        placeholder="0"
+                                                        readOnly={pricingForm.brand === 'HEYMALE'}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-700 mb-1.5">HPP (IDR)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                                        value={pricingForm.hpp} 
+                                                        onChange={handleHppChange} 
+                                                        placeholder="Input HPP here..." 
+                                                    />
+                                                </div>
                                             </div>
                                             <div className="grid grid-cols-3 gap-3">
                                                 <div><label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Platform %</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-sm text-center" value={pricingForm.platformFee} onChange={(e) => setPricingForm({...pricingForm, platformFee: e.target.value})} /></div>
@@ -597,12 +774,22 @@
 
                                                 <div className="bg-slate-800 p-4 rounded-lg text-white">
                                                     <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Final Manual Price</label>
-                                                    <input type="number" className="w-full p-2 border border-slate-600 rounded bg-slate-700 text-white font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none mb-3" placeholder={pricingResult.recommendation.price} value={pricingForm.manualPrice} onChange={(e) => setPricingForm({...pricingForm, manualPrice: e.target.value})} />
+                                                    <input type="number" className="w-full p-2 border border-slate-600 rounded bg-slate-700 text-white font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none mb-3" placeholder={pricingResult.rspBaru} value={pricingForm.manualPrice} onChange={(e) => setPricingForm({...pricingForm, manualPrice: e.target.value})} />
                                                     
                                                     <div className="space-y-1 text-xs">
                                                         <div className="flex justify-between"><span className="text-slate-400">Total Fee Deduction</span><span className="text-rose-400">-{formatRupiah(pricingResult.rspMpSuggest * (parseFloat(pricingForm.platformFee)+parseFloat(pricingForm.marketingFee)+parseFloat(pricingForm.otherFee || 0))/100)}</span></div>
                                                         <div className="flex justify-between pt-2 border-t border-slate-600 mt-2"><span className="text-slate-300 font-bold">Net Profit (GM Abs)</span><span className="font-bold text-emerald-400">{formatRupiah(pricingResult.gmAbsMp)}</span></div>
                                                         <div className="flex justify-between"><span className="text-slate-300 font-bold">Net Margin (GM %)</span><span className="font-bold text-emerald-400">{Number(pricingResult.gmPctMp || 0).toFixed(2)}%</span></div>
+                                                        
+                                                        {/* Live Max Disc Calc in Panel */}
+                                                        <div className="flex justify-between pt-2 mt-2 border-t border-slate-600">
+                                                            <span className="text-amber-400 font-bold">Max Safe Disc</span>
+                                                            <span className="font-bold text-amber-400">{pricingResult.maxDiscountSafe.toFixed(1)}%</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-slate-400 italic">Profit at Max Disc</span>
+                                                            <span className="font-medium text-slate-400">{formatRupiah(pricingResult.profitAtFloor)}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -622,9 +809,12 @@
 
                         {/* SAVED RECORDS TABLE */}
                         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
-                                <Icons.List className="text-slate-500" size={20}/>
-                                <h3 className="font-bold text-slate-800">Saved Records</h3>
+                            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Icons.List className="text-slate-500" size={20}/>
+                                    <h3 className="font-bold text-slate-800">Saved Records</h3>
+                                </div>
+                                <button onClick={handleExportPricing} className="px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 flex items-center gap-1 text-xs font-bold transition-colors shadow-sm"><Icons.Download size={14}/> Export CSV</button>
                             </div>
                             {pricingList.length === 0 ? (
                                 <div className="p-12 text-center flex flex-col items-center justify-center text-slate-400">
@@ -635,34 +825,66 @@
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-sm text-left min-w-[1000px]">
+                                    <table className="w-full text-sm text-left min-w-[1500px]">
                                         <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 text-xs uppercase tracking-wider">
                                             <tr>
-                                                <th className="px-4 py-3 text-center">Brand</th>
-                                                <th className="px-4 py-3 text-left">Article Name</th>
-                                                <th className="px-4 py-3 text-center">Category</th>
+                                                <th className="px-4 py-3 text-center w-[100px]">Brand</th>
+                                                <th className="px-4 py-3 text-left">Article</th>
                                                 <th className="px-4 py-3 text-right">RSP Web</th>
+                                                <th className="px-4 py-3 text-right text-emerald-600 bg-emerald-50/50">Profit Web</th>
                                                 <th className="px-4 py-3 text-right text-slate-400">HPP</th>
-                                                <th className="px-4 py-3 text-center">Target GM</th>
-                                                <th className="px-4 py-3 text-right font-bold text-indigo-900 bg-indigo-50">Final Price (MP)</th>
-                                                <th className="px-4 py-3 text-center font-bold text-emerald-700 bg-emerald-50">Final GM %</th>
+                                                <th className="px-4 py-3 text-right bg-indigo-50/50 text-indigo-900 border-l border-indigo-100">Final MP</th>
+                                                <th className="px-4 py-3 text-right bg-indigo-50/50 text-indigo-900">Profit MP</th>
+                                                <th className="px-4 py-3 text-center bg-indigo-50/50 text-indigo-900">GM MP</th>
+                                                <th className="px-4 py-3 text-center bg-amber-50/50 text-amber-800 border-l border-amber-100">Max Disc</th>
+                                                <th className="px-4 py-3 text-right bg-amber-50/50 text-amber-800">Profit Max Disc</th>
                                                 <th className="px-4 py-3 text-center">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {pricingList.map(item => (
+                                            {pricingList.map(item => {
+                                                const target = item.brandTarget || BRAND_TARGETS[item.brand] || 0;
+                                                const feePct = parseFloat(item.platformFee) + parseFloat(item.marketingFee) + parseFloat(item.otherFee || 0);
+                                                const feeDec = feePct / 100;
+                                                const hpp = parseFloat(item.hpp);
+                                                const mpPrice = parseFloat(item.rspMpSuggest);
+                                                const floorPriceRaw = hpp / (1 - feeDec - (target/100));
+                                                
+                                                let maxDisc = item.maxDiscountSafe;
+                                                let profAtMax = item.profitAtFloor;
+                                                
+                                                if (maxDisc === undefined || profAtMax === undefined) {
+                                                    maxDisc = mpPrice > floorPriceRaw ? ((mpPrice - floorPriceRaw) / mpPrice * 100) : 0;
+                                                    const feeAtFloor = floorPriceRaw * feeDec;
+                                                    profAtMax = floorPriceRaw - feeAtFloor - hpp;
+                                                }
+
+                                                return (
                                                 <tr key={item.id} className={`hover:bg-slate-50 transition-colors ${editingPricingId === item.id ? 'bg-indigo-50 hover:bg-indigo-50 border-l-4 border-indigo-500' : ''}`}>
-                                                    <td className="px-4 py-3 text-center font-semibold text-slate-600">{item.brand}</td>
-                                                    <td className="px-4 py-3 font-medium text-slate-800">{item.articleName}</td>
-                                                    <td className="px-4 py-3 text-center text-xs text-slate-500 bg-slate-50 rounded mx-2">{item.category}</td>
-                                                    <td className="px-4 py-3 text-right">{formatRupiah(item.rspWeb)}</td>
+                                                    <td className="px-4 py-3 text-center font-bold text-slate-600 text-xs">{item.brand}</td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="font-medium text-slate-800">{item.articleName}</div>
+                                                        <div className="text-[10px] text-slate-500">{item.category}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-medium text-slate-700">{formatRupiah(item.rspWeb)}</td>
+                                                    <td className="px-4 py-3 text-right font-bold text-emerald-600 bg-emerald-50/30">{formatRupiah(item.webGmAbs)}</td>
                                                     <td className="px-4 py-3 text-right text-slate-400">{formatRupiah(item.hpp)}</td>
-                                                    <td className="px-4 py-3 text-center text-xs">{BRAND_TARGETS[item.brand]}%</td>
-                                                    <td className="px-4 py-3 text-right font-bold text-indigo-700 bg-indigo-50/30">{formatRupiah(item.rspMpSuggest)}</td>
-                                                    <td className="px-4 py-3 text-center bg-emerald-50/30">
-                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${item.gmPctMp >= BRAND_TARGETS[item.brand] ? 'text-emerald-700 bg-emerald-100' : 'text-rose-700 bg-rose-100'}`}>
+                                                    <td className="px-4 py-3 text-right bg-indigo-50/30 border-l border-indigo-50">
+                                                        <div className="font-bold text-indigo-700">{formatRupiah(item.rspMpSuggest)}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right bg-indigo-50/30 font-bold text-indigo-600">
+                                                        {formatRupiah(item.gmAbsMp)}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center bg-indigo-50/30">
+                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${item.gmPctMp >= target ? 'text-emerald-700 bg-emerald-100' : 'text-rose-700 bg-rose-100'}`}>
                                                             {Number(item.gmPctMp || 0).toFixed(1)}%
                                                         </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center bg-amber-50/30 border-l border-amber-50">
+                                                        <div className="font-bold text-amber-700">{maxDisc.toFixed(1)}%</div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right bg-amber-50/30 text-amber-800 font-medium">
+                                                        {formatRupiah(profAtMax)}
                                                     </td>
                                                     <td className="px-4 py-3 text-center">
                                                         <div className="flex items-center justify-center gap-2">
@@ -671,7 +893,7 @@
                                                         </div>
                                                     </td>
                                                 </tr>
-                                            ))}
+                                            )})} 
                                         </tbody>
                                     </table>
                                 </div>
