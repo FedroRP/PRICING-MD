@@ -31,6 +31,11 @@
             -webkit-appearance: none; 
             margin: 0; 
         }
+        
+        .loading-overlay {
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(2px);
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans">
@@ -40,7 +45,7 @@
         const { useState, useEffect, useMemo, useCallback } = React;
 
         // --- CONFIGURATION ---
-        // URL Google Apps Script Anda
+        // URL Google Apps Script Anda (PASTIKAN SUDAH UPDATE SCRIPT DI GOOGLE SHEET DAN DEPLOY VERSI BARU)
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz20x9-UZbamv9t0vmpaKnjrk0tkalFXmp15V-ny4Ojlrb1NGZJaad3bH05tW_wf_QZUw/exec"; 
 
         // --- ICON COMPONENTS ---
@@ -63,131 +68,32 @@
             AlertTriangle: (props) => <IconWrapper {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></IconWrapper>
         };
 
-        // --- DATA & CONFIGURATION ---
-        const BRAND_TARGETS = {
-            "HEYMALE": 57,
-            "HEYLOCAL": 42,
-            "BOONABOO": 44,
-            "SHUWA": 42
-        };
+        const BRAND_TARGETS = { "HEYMALE": 57, "HEYLOCAL": 42, "BOONABOO": 44, "SHUWA": 42 };
 
-        // DB 1: WOMEN'S FASHION
         const GENERAL_COMPETITOR_DB = {
-            "SCARFS": [
-                { brand: "Buttonscarves", price: 425000 },
-                { brand: "Nada Puspita", price: 335000 },
-                { brand: "Kami Idea", price: 350000 },
-                { brand: "Heaven Light", price: 175000 }
-            ],
-            "BAGS": [
-                { brand: "Buttonscarves", price: 1800000 },
-                { brand: "Kami Idea", price: 950000 },
-                { brand: "Wearing Klamby", price: 850000 },
-                { brand: "Nada Puspita", price: 799000 }
-            ],
-            "PRAYER SETS": [
-                { brand: "Buttonscarves", price: 1500000 },
-                { brand: "Nada Puspita", price: 975000 },
-                { brand: "Wearing Klamby", price: 1200000 },
-                { brand: "Heaven Light", price: 650000 }
-            ],
-            "PARFUME": [
-                { brand: "Buttonscarves", price: 595000 },
-                { brand: "Wearing Klamby", price: 450000 },
-                { brand: "Heaven Light", price: 225000 },
-                { brand: "Heavenscent", price: 199000 }
-            ],
-            "SHOES": [
-                { brand: "Buttonscarves", price: 1975000 },
-                { brand: "Wearing Klamby", price: 950000 },
-                { brand: "Kami Idea", price: 1100000 },
-                { brand: "Nada Puspita", price: 899000 }
-            ],
-            "APPARELS": [
-                { brand: "Wearing Klamby", price: 650000 },
-                { brand: "Kami Idea", price: 750000 },
-                { brand: "Heaven Light", price: 399000 },
-                { brand: "Nada Puspita", price: 475000 }
-            ],
-            "ACCESSORIES": [
-                { brand: "Buttonscarves", price: 475000 },
-                { brand: "Nada Puspita", price: 199000 },
-                { brand: "Wearing Klamby", price: 250000 },
-                { brand: "Kami Idea", price: 225000 }
-            ],
-            "SPORT SERIES": [
-                { brand: "Buttonscarves", price: 475000 },
-                { brand: "Wearing Klamby", price: 295000 },
-                { brand: "Heaven Light", price: 150000 },
-                { brand: "Nada Puspita", price: 225000 }
-            ],
-            "HOME WEAR": [
-                { brand: "Wearing Klamby", price: 350000 },
-                { brand: "Heaven Light", price: 199000 },
-                { brand: "Nada Puspita", price: 299000 },
-                { brand: "Buttonscarves", price: 975000 }
-            ],
-            "INNER WEAR": [
-                { brand: "Buttonscarves", price: 125000 },
-                { brand: "Nada Puspita", price: 85000 },
-                { brand: "Heaven Light", price: 55000 },
-                { brand: "Kami Idea", price: 75000 }
-            ]
+            "SCARFS": [{ brand: "Buttonscarves", price: 425000 }, { brand: "Nada Puspita", price: 335000 }, { brand: "Kami Idea", price: 350000 }, { brand: "Heaven Light", price: 175000 }],
+            "BAGS": [{ brand: "Buttonscarves", price: 1800000 }, { brand: "Kami Idea", price: 950000 }, { brand: "Wearing Klamby", price: 850000 }, { brand: "Nada Puspita", price: 799000 }],
+            "PRAYER SETS": [{ brand: "Buttonscarves", price: 1500000 }, { brand: "Nada Puspita", price: 975000 }, { brand: "Wearing Klamby", price: 1200000 }, { brand: "Heaven Light", price: 650000 }],
+            "PARFUME": [{ brand: "Buttonscarves", price: 595000 }, { brand: "Wearing Klamby", price: 450000 }, { brand: "Heaven Light", price: 225000 }, { brand: "Heavenscent", price: 199000 }],
+            "SHOES": [{ brand: "Buttonscarves", price: 1975000 }, { brand: "Wearing Klamby", price: 950000 }, { brand: "Kami Idea", price: 1100000 }, { brand: "Nada Puspita", price: 899000 }],
+            "APPARELS": [{ brand: "Wearing Klamby", price: 650000 }, { brand: "Kami Idea", price: 750000 }, { brand: "Heaven Light", price: 399000 }, { brand: "Nada Puspita", price: 475000 }],
+            "ACCESSORIES": [{ brand: "Buttonscarves", price: 475000 }, { brand: "Nada Puspita", price: 199000 }, { brand: "Wearing Klamby", price: 250000 }, { brand: "Kami Idea", price: 225000 }],
+            "SPORT SERIES": [{ brand: "Buttonscarves", price: 475000 }, { brand: "Wearing Klamby", price: 295000 }, { brand: "Heaven Light", price: 150000 }, { brand: "Nada Puspita", price: 225000 }],
+            "HOME WEAR": [{ brand: "Wearing Klamby", price: 350000 }, { brand: "Heaven Light", price: 199000 }, { brand: "Nada Puspita", price: 299000 }, { brand: "Buttonscarves", price: 975000 }],
+            "INNER WEAR": [{ brand: "Buttonscarves", price: 125000 }, { brand: "Nada Puspita", price: 85000 }, { brand: "Heaven Light", price: 55000 }, { brand: "Kami Idea", price: 75000 }]
         };
 
-        // DB 2: MEN'S FASHION
         const HEYMALE_COMPETITOR_DB = {
-            "ACCESSORIES": [
-                { brand: "Eiger", price: 149000 },
-                { brand: "Kalibre", price: 199000 },
-                { brand: "Bodypack", price: 125000 },
-                { brand: "Roughneck 1991", price: 89000 }
-            ],
-            "JACKETS": [
-                { brand: "Erigo", price: 350000 },
-                { brand: "Roughneck 1991", price: 299000 },
-                { brand: "Maternal Disaster", price: 420000 },
-                { brand: "Sch.", price: 450000 }
-            ],
-            "KNITWEAR": [
-                { brand: "Uniqlo", price: 399000 },
-                { brand: "H&M", price: 349000 },
-                { brand: "Gomuda", price: 249000 },
-                { brand: "Local Knit", price: 199000 }
-            ],
-            "PANTS": [
-                { brand: "Smith Berlin", price: 289000 },
-                { brand: "Erigo", price: 185000 },
-                { brand: "House of Smith", price: 320000 },
-                { brand: "Livehaf", price: 199000 }
-            ],
-            "PERFUMES": [
-                { brand: "Kahf", price: 75000 },
-                { brand: "HMNS", price: 320000 },
-                { brand: "Onix", price: 189000 },
-                { brand: "Saff & Co", price: 249000 }
-            ],
-            "POLO SHIRTS": [
-                { brand: "Crocodile (Local)", price: 250000 },
-                { brand: "M231", price: 149000 },
-                { brand: "Platini", price: 120000 },
-                { brand: "Uniqlo", price: 299000 }
-            ],
-            "SHIRTS": [
-                { brand: "M231", price: 189000 },
-                { brand: "Alisan", price: 160000 },
-                { brand: "Platini", price: 150000 },
-                { brand: "Fargo", price: 175000 }
-            ],
-            "TEES": [
-                { brand: "Aerostreet", price: 79000 },
-                { brand: "Erigo", price: 99000 },
-                { brand: "Maternal", price: 165000 },
-                { brand: "Roughneck", price: 88000 }
-            ]
+            "ACCESSORIES": [{ brand: "Eiger", price: 149000 }, { brand: "Kalibre", price: 199000 }, { brand: "Bodypack", price: 125000 }, { brand: "Roughneck 1991", price: 89000 }],
+            "JACKETS": [{ brand: "Erigo", price: 350000 }, { brand: "Roughneck 1991", price: 299000 }, { brand: "Maternal Disaster", price: 420000 }, { brand: "Sch.", price: 450000 }],
+            "KNITWEAR": [{ brand: "Uniqlo", price: 399000 }, { brand: "H&M", price: 349000 }, { brand: "Gomuda", price: 249000 }, { brand: "Local Knit", price: 199000 }],
+            "PANTS": [{ brand: "Smith Berlin", price: 289000 }, { brand: "Erigo", price: 185000 }, { brand: "House of Smith", price: 320000 }, { brand: "Livehaf", price: 199000 }],
+            "PERFUMES": [{ brand: "Kahf", price: 75000 }, { brand: "HMNS", price: 320000 }, { brand: "Onix", price: 189000 }, { brand: "Saff & Co", price: 249000 }],
+            "POLO SHIRTS": [{ brand: "Crocodile (Local)", price: 250000 }, { brand: "M231", price: 149000 }, { brand: "Platini", price: 120000 }, { brand: "Uniqlo", price: 299000 }],
+            "SHIRTS": [{ brand: "M231", price: 189000 }, { brand: "Alisan", price: 160000 }, { brand: "Platini", price: 150000 }, { brand: "Fargo", price: 175000 }],
+            "TEES": [{ brand: "Aerostreet", price: 79000 }, { brand: "Erigo", price: 99000 }, { brand: "Maternal", price: 165000 }, { brand: "Roughneck", price: 88000 }]
         };
 
-        // --- HELPER FUNCTIONS ---
         const formatRupiah = (val) => {
             const number = parseFloat(val);
             if (val === null || val === undefined || isNaN(number)) return "Rp0";
@@ -198,7 +104,6 @@
             const csvRows = [];
             const headers = Object.keys(data[0]);
             csvRows.push(headers.join(','));
-
             for (const row of data) {
                 const values = headers.map(header => {
                     const escaped = ('' + row[header]).replace(/"/g, '\\"');
@@ -206,7 +111,6 @@
                 });
                 csvRows.push(values.join(','));
             }
-
             const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -218,53 +122,94 @@
             document.body.removeChild(a);
         };
 
-        // --- MAIN APP COMPONENT ---
         function App() {
-            // Pricing States
             const [pricingList, setPricingList] = useState([]);
             const [editingPricingId, setEditingPricingId] = useState(null); 
             const [isDataLoaded, setIsDataLoaded] = useState(false);
-            
-            // Sync States
             const [isSaving, setIsSaving] = useState(false);
+            const [isFetching, setIsFetching] = useState(true); // New state for initial load
             const [notification, setNotification] = useState(null);
-            
-            // Delete Confirmation State (New)
             const [deleteConfirmation, setDeleteConfirmation] = useState(null);
 
-            // Initial Form State
             const initialFormState = { 
-                brand: 'HEYLOCAL', 
-                targetGm: 42, 
-                category: '', 
-                articleName: '', 
-                rspWeb: '', 
-                hpp: '', 
-                competitorPrice: '', 
-                platformFee: 17.5, 
-                marketingFee: 15, 
-                otherFee: 0, 
-                notes: '', 
-                manualPrice: '' 
+                brand: 'HEYLOCAL', targetGm: 42, category: '', articleName: '', 
+                rspWeb: '', hpp: '', competitorPrice: '', 
+                platformFee: 17.5, marketingFee: 15, otherFee: 0, 
+                notes: '', manualPrice: '' 
             };
             const [pricingForm, setPricingForm] = useState(initialFormState);
 
-            // Determine active Competitor DB based on selected Brand
             const activeCompetitorDB = pricingForm.brand === 'HEYMALE' ? HEYMALE_COMPETITOR_DB : GENERAL_COMPETITOR_DB;
 
-            // Load Data from LocalStorage
+            // HELPER: Convert string from Sheet (e.g. "100.000") back to number (100000)
+            const parseSheetNumber = (val) => {
+                if (typeof val === 'number') return val;
+                if (!val) return 0;
+                // Remove dots (100.000 -> 100000)
+                const cleanStr = val.toString().replace(/\./g, '').replace(/,/g, '.');
+                return parseFloat(cleanStr) || 0;
+            };
+
+            const parseSheetPercent = (val) => {
+                if (typeof val === 'number') return val;
+                if (!val) return 0;
+                // Remove % (50% -> 50)
+                const cleanStr = val.toString().replace('%', '');
+                return parseFloat(cleanStr) || 0;
+            };
+
+            // FETCH DATA FROM GOOGLE SHEET ON LOAD
             useEffect(() => {
-                const savedPricing = localStorage.getItem('planner_pricing_v3'); 
-                if (savedPricing) setPricingList(JSON.parse(savedPricing));
-                setIsDataLoaded(true);
+                const fetchSheetData = async () => {
+                    if (!GOOGLE_SCRIPT_URL) {
+                        // Fallback to local storage if no URL
+                        const savedPricing = localStorage.getItem('planner_pricing_v3'); 
+                        if (savedPricing) setPricingList(JSON.parse(savedPricing));
+                        setIsDataLoaded(true);
+                        setIsFetching(false);
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(GOOGLE_SCRIPT_URL);
+                        const data = await response.json();
+                        
+                        if (Array.isArray(data)) {
+                            // Map formatted data from sheet back to raw numbers for app logic
+                            const processedData = data.map(item => ({
+                                ...item,
+                                rspWeb: parseSheetNumber(item.rspWeb),
+                                webGmAbs: parseSheetNumber(item.webGmAbs),
+                                hpp: parseSheetNumber(item.hpp),
+                                brandTarget: parseSheetPercent(item.brandTarget),
+                                rspMpSuggest: parseSheetNumber(item.rspMpSuggest),
+                                gmAbsMp: parseSheetNumber(item.gmAbsMp),
+                                gmPctMp: parseSheetPercent(item.gmPctMp),
+                                profitAtFloor: parseSheetNumber(item.profitAtFloor)
+                            }));
+                            setPricingList(processedData);
+                            // Backup sync to local storage
+                            localStorage.setItem('planner_pricing_v3', JSON.stringify(processedData));
+                        }
+                    } catch (error) {
+                        console.error("Failed to fetch from sheet, falling back to local:", error);
+                        const savedPricing = localStorage.getItem('planner_pricing_v3'); 
+                        if (savedPricing) setPricingList(JSON.parse(savedPricing));
+                        setNotification({ type: 'error', message: 'Gagal mengambil data Cloud. Menampilkan data lokal.' });
+                    } finally {
+                        setIsDataLoaded(true);
+                        setIsFetching(false);
+                    }
+                };
+
+                fetchSheetData();
             }, []);
 
-            // Save Data to LocalStorage
+            // Save Data to LocalStorage (as backup)
             useEffect(() => { 
                 if (isDataLoaded) localStorage.setItem('planner_pricing_v3', JSON.stringify(pricingList)); 
             }, [pricingList, isDataLoaded]);
 
-            // Clear notification after 3s
             useEffect(() => {
                 if (notification) {
                     const timer = setTimeout(() => setNotification(null), 3000);
@@ -272,36 +217,26 @@
                 }
             }, [notification]);
 
-            // --- SPECIAL LOGIC FOR HEYMALE RSP CALCULATION ---
+            // ... (Rest of logic same as before) ...
+            
             const calculateHeymaleRspWeb = (hpp, targetGm) => {
                 const h = parseFloat(hpp);
                 const gm = parseFloat(targetGm) / 100;
-                
                 if (isNaN(h) || h <= 0 || isNaN(gm) || gm >= 1) return '';
                 const rawRsp = h / (1 - gm);
                 const roundedRsp = Math.ceil(rawRsp / 10000) * 10000 - 1000;
                 return roundedRsp;
             };
 
-            // --- PRICING LOGIC ENGINE ---
             const pricingResult = useMemo(() => {
                 const { rspWeb, hpp, platformFee, marketingFee, otherFee, competitorPrice, brand, manualPrice, targetGm } = pricingForm;
-                
-                const safeParse = (val) => {
-                    const parsed = parseFloat(val);
-                    return isNaN(parsed) ? 0 : parsed;
-                };
-
+                const safeParse = (val) => { const parsed = parseFloat(val); return isNaN(parsed) ? 0 : parsed; };
                 const rWeb = safeParse(rspWeb); 
                 const rHpp = safeParse(hpp); 
                 const cPrice = safeParse(competitorPrice);
                 const target = safeParse(targetGm) || BRAND_TARGETS[brand] || 0;
                 
-                const applyCharmPricing = (val) => {
-                    if (val <= 0) return 0;
-                    let rounded = Math.ceil(val / 10000) * 10000;
-                    return rounded - 1000; 
-                };
+                const applyCharmPricing = (val) => { if (val <= 0) return 0; return Math.ceil(val / 10000) * 10000 - 1000; };
 
                 const totalFeePct = safeParse(platformFee) + safeParse(marketingFee) + safeParse(otherFee);
                 const totalFeeDecimal = totalFeePct / 100;
@@ -311,11 +246,6 @@
                 const feeNominalBaru = Math.round(rspBaru * totalFeeDecimal);
 
                 let recommendation = { price: 0, reason: "", gmPct: 0, gmAbs: 0, maxDiscount: 0, status: 'neutral' };
-
-                // --- REVISI LOGIKA FLOOR PRICE (Agar lebih masuk akal) ---
-                // Sebelumnya: Memaksa GM% sama di MP (membuat harga jadi 2.6jt++)
-                // Sekarang: Floor Price = Harga RSP Baru (Web Price + Fee). 
-                // Ini memastikan Net Revenue di MP minimal SAMA dengan di Web.
                 let floorPrice = rspBaru; 
 
                 if (cPrice > 0) {
@@ -323,31 +253,22 @@
                         const gap = 10000; 
                         let targetPrice = cPrice - gap;
                         targetPrice = applyCharmPricing(targetPrice);
-                        // Jangan sampai undercut di bawah harga modal web+fee
                         if (targetPrice < floorPrice) targetPrice = floorPrice;
-
                         recommendation.price = targetPrice;
                         recommendation.status = 'good';
-                        
                         const feeRec = targetPrice * totalFeeDecimal;
                         recommendation.gmAbs = targetPrice - feeRec - rHpp;
                         recommendation.gmPct = targetPrice > 0 ? (recommendation.gmAbs / targetPrice) * 100 : 0;
-
-                        recommendation.reason = `Harga kompetitor Rp${formatRupiah(cPrice)} cukup tinggi. \nSistem menyarankan **Rp${formatRupiah(targetPrice)}** (Strategi Undercut). \nAnda menang harga (lebih murah Rp${formatRupiah(cPrice-targetPrice)}) dan nilai web terjaga.`;
-
+                        recommendation.reason = `Harga kompetitor Rp${formatRupiah(cPrice)} cukup tinggi. \nSistem menyarankan **Rp${formatRupiah(targetPrice)}** (Strategi Undercut).`;
                     } else {
-                        // Strategy: Floor Limit (Kompetitor Hancur Harga)
                         recommendation.price = floorPrice;
                         recommendation.status = 'warning';
-                        
                         const feeRec = floorPrice * totalFeeDecimal;
                         recommendation.gmAbs = floorPrice - feeRec - rHpp;
                         recommendation.gmPct = floorPrice > 0 ? (recommendation.gmAbs / floorPrice) * 100 : 0;
-
-                        recommendation.reason = `Harga kompetitor Rp${formatRupiah(cPrice)} terlalu rendah (di bawah harga Web + Fee). \nSaran sistem: **Rp${formatRupiah(floorPrice)}** (Proteksi Nilai Web). \nJangan ikuti perang harga di bawah ini agar profit web tidak tergerus.`;
+                        recommendation.reason = `Harga kompetitor Rp${formatRupiah(cPrice)} terlalu rendah. \nSaran sistem: **Rp${formatRupiah(floorPrice)}** (Proteksi Nilai Web).`;
                     }
                 } else {
-                    // No Competitor Data: Use Ideal Cost-Plus Price
                     recommendation.price = rspBaru;
                     recommendation.status = 'neutral';
                     const feeRec = rspBaru * totalFeeDecimal;
@@ -356,12 +277,8 @@
                     recommendation.reason = "Belum ada data kompetitor. Menggunakan harga ideal (RSP Web + Fee).";
                 }
 
-                // Initial maxDiscount calculation (based on recommendation)
-                if (recommendation.price > 0) {
-                    recommendation.maxDiscount = ((recommendation.price - rWeb) / recommendation.price) * 100;
-                } else {
-                    recommendation.maxDiscount = 0;
-                }
+                if (recommendation.price > 0) recommendation.maxDiscount = ((recommendation.price - rWeb) / recommendation.price) * 100;
+                else recommendation.maxDiscount = 0;
 
                 const rspMpSuggest = safeParse(manualPrice) || rspBaru; 
                 const feeNominalSuggest = rspMpSuggest * totalFeeDecimal; 
@@ -373,16 +290,9 @@
                 const webGmAbs = rWeb - rHpp;
                 const webGmPct = rWeb > 0 ? (webGmAbs / rWeb) * 100 : 0;
 
-                // --- NEW LOGIC FOR MAX DISCOUNT ---
-                // Rumus: (RSP MP - RSP WEB) / RSP MP
                 let maxDiscountSafe = 0;
-                if (rspMpSuggest > 0) {
-                    maxDiscountSafe = ((rspMpSuggest - rWeb) / rspMpSuggest) * 100;
-                }
+                if (rspMpSuggest > 0) maxDiscountSafe = ((rspMpSuggest - rWeb) / rspMpSuggest) * 100;
                 
-                // Profit at Max Disc = RSP WEB - Biaya Tambahan Baru - HPP
-                // (Ini asumsi diskon maksimal diberikan sehingga harga jual bersih jadi setara Web Net, tapi fee admin tetap dihitung dari harga jual awal/diskon?? 
-                // Biasanya marketplace hitung fee dari harga setelah diskon, tapi untuk aman pakai fee nominal awal)
                 let profitAtFloor = rWeb - feeNominalBaru - rHpp;
 
                 return { 
@@ -392,8 +302,6 @@
                 };
             }, [pricingForm]);
 
-            // --- EVENT HANDLERS ---
-            
             const handleBrandChange = (e) => {
                 const newBrand = e.target.value;
                 const defaultGm = BRAND_TARGETS[newBrand] || 0;
@@ -460,11 +368,9 @@
                 const currentId = editingPricingId || Date.now();
                 const newItem = { id: currentId, ...pricingForm, ...pricingResult, date: new Date().toISOString().split('T')[0] };
 
-                // Formatter Helper
                 const fmtNum = (n) => { const val = parseFloat(n); return isNaN(val) ? 0 : Math.round(val); };
                 const fmtPct = (n) => { const val = parseFloat(n); return isNaN(val) ? "0%" : Math.floor(val) + "%"; };
 
-                // Sheet Payload (Formatted)
                 const sheetPayload = {
                     ...newItem,
                     rspWeb: fmtNum(newItem.rspWeb),
@@ -530,24 +436,18 @@
                 setPricingForm(initialFormState);
             };
 
-            // --- DELETE LOGIC (NEW: With Custom Modal) ---
-            
-            // 1. Triggered when trash icon is clicked
             const requestDelete = (id) => {
-                setDeleteConfirmation(id); // Show the modal
+                setDeleteConfirmation(id);
             };
 
-            // 2. Triggered when "Yes, Delete" is clicked in modal
             const confirmDelete = async () => {
                 const idToDelete = deleteConfirmation;
-                setDeleteConfirmation(null); // Close modal immediately
+                setDeleteConfirmation(null);
                 setIsSaving(true);
 
-                // Optimistic UI Update (Hapus di layar dulu)
                 if (editingPricingId === idToDelete) handleCancelEdit();
                 setPricingList(prevList => prevList.filter(item => item.id !== idToDelete));
 
-                // Send delete command to server
                 if (GOOGLE_SCRIPT_URL) {
                     setNotification({ type: 'warning', message: 'Menghapus dari cloud...' });
                     try {
@@ -568,19 +468,16 @@
                     const feeDec = feePct / 100;
                     const hpp = parseFloat(item.hpp);
                     const mpPrice = parseFloat(item.rspMpSuggest);
-                    const floorPriceRaw = hpp / (1 - feeDec - (target/100));
                     
                     let maxDisc = item.maxDiscountSafe;
                     let profAtMax = item.profitAtFloor;
 
                     if(maxDisc === undefined || profAtMax === undefined) {
-                         // Perhitungan Max Disc baru untuk export juga: (RSP MP - RSP Web) / RSP MP
-                         if (mpPrice > 0) {
-                             maxDisc = ((mpPrice - parseFloat(item.rspWeb)) / mpPrice) * 100;
-                         } else {
-                             maxDisc = 0;
-                         }
-                         const feeNominalBaru = parseFloat(item.feeNominalBaru);
+                         if (mpPrice > 0) maxDisc = ((mpPrice - parseFloat(item.rspWeb)) / mpPrice) * 100;
+                         else maxDisc = 0;
+                         const feeNominalBaru = Math.round(parseFloat(item.rspWeb) * feeDec); 
+                         // Note: Re-calc fee here might slightly differ if fee was calc on MP price, 
+                         // but profitAtFloor logic in pricingResult uses rWeb-fee-hpp
                          profAtMax = parseFloat(item.rspWeb) - feeNominalBaru - hpp;
                     }
 
@@ -604,7 +501,6 @@
                 downloadTableAsCSV(csvData, `Pricing_Export_${new Date().toISOString().slice(0,10)}.csv`);
             };
 
-            // Calculate active competitors for display based on active DB
             const selectedCompetitors = activeCompetitorDB[pricingForm.category] || [];
             const prices = selectedCompetitors.map(c => c.price);
             const minPrice = prices.length ? Math.min(...prices) : 0;
@@ -616,7 +512,13 @@
             return (
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in relative">
                     
-                    {/* CUSTOM DELETE MODAL */}
+                    {isFetching && (
+                        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
+                            <Icons.RefreshCw size={48} className="text-indigo-600 animate-spin mb-4"/>
+                            <p className="text-slate-600 font-medium">Syncing data from Cloud...</p>
+                        </div>
+                    )}
+
                     {deleteConfirmation && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
                             <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 transform transition-all scale-100">
@@ -629,25 +531,14 @@
                                         Tindakan ini akan menghapus data dari aplikasi dan Google Spreadsheet secara permanen.
                                     </p>
                                     <div className="flex gap-3 w-full">
-                                        <button 
-                                            onClick={() => setDeleteConfirmation(null)}
-                                            className="flex-1 px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 font-bold hover:bg-slate-50 transition-colors"
-                                        >
-                                            Batal
-                                        </button>
-                                        <button 
-                                            onClick={confirmDelete}
-                                            className="flex-1 px-4 py-2 bg-rose-600 rounded-lg text-white font-bold hover:bg-rose-700 shadow-md transition-colors"
-                                        >
-                                            Ya, Hapus
-                                        </button>
+                                        <button onClick={() => setDeleteConfirmation(null)} className="flex-1 px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 font-bold hover:bg-slate-50 transition-colors">Batal</button>
+                                        <button onClick={confirmDelete} className="flex-1 px-4 py-2 bg-rose-600 rounded-lg text-white font-bold hover:bg-rose-700 shadow-md transition-colors">Ya, Hapus</button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* TOAST NOTIFICATION */}
                     {notification && (
                         <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-bold text-sm animate-fade-in flex items-center gap-2 ${notification.type === 'success' ? 'bg-emerald-500' : (notification.type === 'error' ? 'bg-rose-500' : 'bg-slate-700')}`}>
                             {notification.type === 'success' && <Icons.Cloud size={18}/>}
@@ -655,7 +546,6 @@
                         </div>
                     )}
 
-                    {/* Header */}
                     <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md tracking-tight">
@@ -668,9 +558,7 @@
                         </div>
                         <div className="flex gap-2 items-center">
                             {!GOOGLE_SCRIPT_URL && (
-                                <div className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-md border border-amber-200 font-bold hidden sm:block">
-                                    Offline Mode (No Sheet URL)
-                                </div>
+                                <div className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-md border border-amber-200 font-bold hidden sm:block">Offline Mode (No Sheet URL)</div>
                             )}
                             <div className="flex gap-2 text-sm text-slate-500 bg-slate-100 px-4 py-2 rounded-lg">
                                 <span className="font-semibold text-slate-700">Database:</span> {pricingList.length} items saved
@@ -679,7 +567,6 @@
                     </div>
 
                     <div className="space-y-8">
-                        {/* FORM & CALCULATOR SECTION */}
                         <div id="pricing-form-container" className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
                             <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
@@ -690,7 +577,6 @@
                             
                             <div className="p-8">
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                                    {/* LEFT: INPUTS */}
                                     <div className="space-y-5">
                                         <div className="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100 space-y-4">
                                             <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-2">Basic Info</h4>
@@ -703,12 +589,7 @@
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-700 mb-1.5">Target GM (%)</label>
-                                                    <input 
-                                                        type="number" 
-                                                        className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-slate-800 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" 
-                                                        value={pricingForm.targetGm}
-                                                        onChange={handleTargetGmChange}
-                                                    />
+                                                    <input type="number" className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-slate-800 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" value={pricingForm.targetGm} onChange={handleTargetGmChange} />
                                                 </div>
                                             </div>
                                             <div>
@@ -724,7 +605,6 @@
                                             </div>
                                         </div>
 
-                                        {/* Competitor Insight Panel */}
                                         {selectedCompetitors.length > 0 && (
                                             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs space-y-3 shadow-inner">
                                                 <div className="font-bold text-slate-600 uppercase tracking-wide border-b border-slate-200 pb-2 mb-1 flex justify-between">
@@ -759,24 +639,11 @@
                                                         RSP Web (IDR)
                                                         {pricingForm.brand === 'HEYMALE' && <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-bold animate-pulse">AUTO CALCULATED</span>}
                                                     </label>
-                                                    <input 
-                                                        type="number" 
-                                                        className={`w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${pricingForm.brand === 'HEYMALE' ? 'bg-indigo-50 text-indigo-800 font-bold border-indigo-200 cursor-not-allowed' : ''}`}
-                                                        value={pricingForm.rspWeb} 
-                                                        onChange={(e) => setPricingForm({...pricingForm, rspWeb: e.target.value})} 
-                                                        placeholder="0"
-                                                        readOnly={pricingForm.brand === 'HEYMALE'}
-                                                    />
+                                                    <input type="number" className={`w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${pricingForm.brand === 'HEYMALE' ? 'bg-indigo-50 text-indigo-800 font-bold border-indigo-200 cursor-not-allowed' : ''}`} value={pricingForm.rspWeb} onChange={(e) => setPricingForm({...pricingForm, rspWeb: e.target.value})} placeholder="0" readOnly={pricingForm.brand === 'HEYMALE'} />
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-700 mb-1.5">HPP (IDR)</label>
-                                                    <input 
-                                                        type="number" 
-                                                        className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
-                                                        value={pricingForm.hpp} 
-                                                        onChange={handleHppChange} 
-                                                        placeholder="Input HPP here..." 
-                                                    />
+                                                    <input type="number" className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={pricingForm.hpp} onChange={handleHppChange} placeholder="Input HPP here..." />
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-3 gap-3">
@@ -787,7 +654,6 @@
                                         </div>
                                     </div>
 
-                                    {/* RIGHT: ANALYSIS & RESULTS */}
                                     <div className="flex flex-col justify-between bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-inner h-full">
                                         <div>
                                             <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-5 flex items-center gap-2"><Icons.Lightbulb size={18} className="text-amber-500"/> Pricing Breakdown</h4>
@@ -815,7 +681,6 @@
                                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-2">3. Competitor Comparison (IDR)</label>
                                                     <input type="number" className="w-full p-2.5 text-sm border border-slate-300 rounded-lg bg-white mb-3 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter Competitor Price..." value={pricingForm.competitorPrice} onChange={(e) => setPricingForm({...pricingForm, competitorPrice: e.target.value})} />
                                                     
-                                                    {/* SYSTEM RECOMMENDATION BLOCK */}
                                                     <div className={`p-4 rounded-lg border text-xs space-y-3 transition-colors duration-300 ${pricingResult.recommendation.status === 'good' ? 'bg-emerald-50 border-emerald-200' : (pricingResult.recommendation.status === 'warning' ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200')}`}>
                                                         <div className="flex gap-3">
                                                             <div className="w-full">
@@ -830,22 +695,15 @@
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                                
                                                                 <div className="mt-3 mb-2 text-slate-700 leading-relaxed whitespace-pre-line font-medium text-[11px] border-l-2 border-indigo-300 pl-3">
                                                                     {pricingResult.recommendation.reason}
                                                                 </div>
-
                                                                 <div className="flex justify-between items-center mt-3 pt-3 border-t border-black/5">
                                                                     <div>
                                                                         <span className="block text-[10px] text-slate-500 uppercase font-bold">Max Disc Aman</span>
                                                                         <span className="text-sm font-bold text-slate-700">{pricingResult.recommendation.maxDiscount.toFixed(1)}%</span>
                                                                     </div>
-                                                                    <button 
-                                                                        onClick={() => setPricingForm({...pricingForm, manualPrice: pricingResult.recommendation.price})}
-                                                                        className="bg-indigo-600 text-white px-3 py-1.5 rounded shadow-sm hover:bg-indigo-700 font-bold text-xs transition-colors"
-                                                                    >
-                                                                        Apply Price
-                                                                    </button>
+                                                                    <button onClick={() => setPricingForm({...pricingForm, manualPrice: pricingResult.recommendation.price})} className="bg-indigo-600 text-white px-3 py-1.5 rounded shadow-sm hover:bg-indigo-700 font-bold text-xs transition-colors">Apply Price</button>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -861,7 +719,6 @@
                                                         <div className="flex justify-between pt-2 border-t border-slate-600 mt-2"><span className="text-slate-300 font-bold">Net Profit (GM Abs)</span><span className="font-bold text-emerald-400">{formatRupiah(pricingResult.gmAbsMp)}</span></div>
                                                         <div className="flex justify-between"><span className="text-slate-300 font-bold">Net Margin (GM %)</span><span className="font-bold text-emerald-400">{Number(pricingResult.gmPctMp || 0).toFixed(2)}%</span></div>
                                                         
-                                                        {/* Live Max Disc Calc in Panel */}
                                                         <div className="flex justify-between pt-2 mt-2 border-t border-slate-600">
                                                             <span className="text-amber-400 font-bold">Max Safe Disc</span>
                                                             <span className="font-bold text-amber-400">{pricingResult.maxDiscountSafe.toFixed(1)}%</span>
@@ -879,11 +736,7 @@
                                                 <button onClick={handleCancelEdit} disabled={isSaving} className="w-1/3 bg-white border border-slate-300 text-slate-700 py-3 rounded-lg font-bold hover:bg-slate-50 transition-colors disabled:opacity-50">Cancel</button>
                                             )}
                                             <button onClick={handleSavePricing} disabled={!pricingForm.articleName || isSaving} className={`flex-1 text-white py-3 rounded-lg font-bold shadow-md transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${editingPricingId ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-900 hover:bg-slate-800'}`}>
-                                                {isSaving ? (
-                                                    <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Saving...</>
-                                                ) : (
-                                                    <>{editingPricingId ? 'Update Price Record' : 'Save to List'}</>
-                                                )}
+                                                {isSaving ? (<><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Saving...</>) : (<>{editingPricingId ? 'Update Price Record' : 'Save to List'}</>)}
                                             </button>
                                         </div>
                                     </div>
@@ -891,7 +744,6 @@
                             </div>
                         </div>
 
-                        {/* SAVED RECORDS TABLE */}
                         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                             <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
@@ -902,9 +754,7 @@
                             </div>
                             {pricingList.length === 0 ? (
                                 <div className="p-12 text-center flex flex-col items-center justify-center text-slate-400">
-                                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3 text-slate-300">
-                                        <Icons.Tag size={32}/>
-                                    </div>
+                                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3 text-slate-300"><Icons.Tag size={32}/></div>
                                     <p>No pricing records saved yet.</p>
                                 </div>
                             ) : (
@@ -936,9 +786,10 @@
                                                 
                                                 let maxDisc = item.maxDiscountSafe;
                                                 let profAtMax = item.profitAtFloor;
-                                                
-                                                if (maxDisc === undefined || profAtMax === undefined) {
-                                                    maxDisc = mpPrice > floorPriceRaw ? ((mpPrice - floorPriceRaw) / mpPrice * 100) : 0;
+
+                                                if(maxDisc === undefined || profAtMax === undefined) {
+                                                    if (mpPrice > 0) maxDisc = ((mpPrice - parseFloat(item.rspWeb)) / mpPrice) * 100;
+                                                    else maxDisc = 0;
                                                     const feeAtFloor = floorPriceRaw * feeDec;
                                                     profAtMax = floorPriceRaw - feeAtFloor - hpp;
                                                 }
@@ -956,20 +807,14 @@
                                                     <td className="px-4 py-3 text-right bg-indigo-50/30 border-l border-indigo-50">
                                                         <div className="font-bold text-indigo-700">{formatRupiah(item.rspMpSuggest)}</div>
                                                     </td>
-                                                    <td className="px-4 py-3 text-right bg-indigo-50/30 font-bold text-indigo-600">
-                                                        {formatRupiah(item.gmAbsMp)}
-                                                    </td>
+                                                    <td className="px-4 py-3 text-right bg-indigo-50/30 font-bold text-indigo-600">{formatRupiah(item.gmAbsMp)}</td>
                                                     <td className="px-4 py-3 text-center bg-indigo-50/30">
-                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${item.gmPctMp >= target ? 'text-emerald-700 bg-emerald-100' : 'text-rose-700 bg-rose-100'}`}>
-                                                            {Number(item.gmPctMp || 0).toFixed(1)}%
-                                                        </span>
+                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${item.gmPctMp >= target ? 'text-emerald-700 bg-emerald-100' : 'text-rose-700 bg-rose-100'}`}>{Number(item.gmPctMp || 0).toFixed(1)}%</span>
                                                     </td>
                                                     <td className="px-4 py-3 text-center bg-amber-50/30 border-l border-amber-50">
                                                         <div className="font-bold text-amber-700">{maxDisc.toFixed(1)}%</div>
                                                     </td>
-                                                    <td className="px-4 py-3 text-right bg-amber-50/30 text-amber-800 font-medium">
-                                                        {formatRupiah(profAtMax)}
-                                                    </td>
+                                                    <td className="px-4 py-3 text-right bg-amber-50/30 text-amber-800 font-medium">{formatRupiah(profAtMax)}</td>
                                                     <td className="px-4 py-3 text-center">
                                                         <div className="flex items-center justify-center gap-2">
                                                             <button onClick={() => handleEditPricing(item.id)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Edit"><Icons.Edit size={16}/></button>
