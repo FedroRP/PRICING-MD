@@ -130,7 +130,7 @@
             const [isFetching, setIsFetching] = useState(true); 
             const [notification, setNotification] = useState(null);
             const [deleteConfirmation, setDeleteConfirmation] = useState(null);
-            const [filterBrand, setFilterBrand] = useState('ALL'); // NEW: State for filter
+            const [filterBrand, setFilterBrand] = useState('ALL'); 
 
             const initialFormState = { 
                 brand: 'HEYLOCAL', targetGm: 42, category: '', articleName: '', 
@@ -179,6 +179,7 @@
                             const processedData = data.map(item => ({
                                 ...item,
                                 rspWeb: parseSheetNumber(item.rspWeb),
+                                webGmPct: parseSheetPercent(item.webGmPct), // NEW: Baca kolom G
                                 webGmAbs: parseSheetNumber(item.webGmAbs),
                                 hpp: parseSheetNumber(item.hpp),
                                 brandTarget: parseSheetPercent(item.brandTarget),
@@ -380,6 +381,7 @@
                 const sheetPayload = {
                     ...newItem,
                     rspWeb: fmtNum(newItem.rspWeb),
+                    webGmPct: fmtPct(newItem.webGmPct), // NEW: Kirim ke Script
                     webGmAbs: fmtNum(newItem.webGmAbs),
                     hpp: fmtNum(newItem.hpp),
                     brandTarget: fmtPct(newItem.brandTarget),
@@ -486,12 +488,16 @@
                          profAtMax = parseFloat(item.rspWeb) - feeNominalBaru - hpp;
                     }
 
+                    // Calculation for new column GM Web %
+                    const webGmPercent = item.rspWeb > 0 ? (item.webGmAbs / item.rspWeb * 100).toFixed(1) + '%' : '0%';
+
                     return {
                         "ID": item.id,
                         "Article Name": item.articleName,
                         "Brand": item.brand,
                         "Category": item.category,
                         "RSP Web": item.rspWeb,
+                        "GM Web %": webGmPercent, // NEW COLUMN ADDED HERE
                         "Profit Web": item.webGmAbs, 
                         "HPP": item.hpp,
                         "Target GM": `${target}%`, 
@@ -776,6 +782,7 @@
                                                 <th className="px-4 py-3 text-center w-[100px]">Brand</th>
                                                 <th className="px-4 py-3 text-left">Article</th>
                                                 <th className="px-4 py-3 text-right">RSP Web</th>
+                                                <th className="px-4 py-3 text-center bg-emerald-50/50 text-emerald-800 border-l border-emerald-100">GM Web %</th>
                                                 <th className="px-4 py-3 text-right text-emerald-600 bg-emerald-50/50">Profit Web</th>
                                                 <th className="px-4 py-3 text-right text-slate-400">HPP</th>
                                                 <th className="px-4 py-3 text-right bg-indigo-50/50 text-indigo-900 border-l border-indigo-100">Final MP</th>
@@ -813,6 +820,9 @@
                                                         <div className="text-[10px] text-slate-500">{item.category}</div>
                                                     </td>
                                                     <td className="px-4 py-3 text-right font-medium text-slate-700">{formatRupiah(item.rspWeb)}</td>
+                                                    <td className="px-4 py-3 text-center bg-emerald-50/30 border-l border-emerald-50">
+                                                        <span className="font-bold text-emerald-700">{(item.rspWeb > 0 ? (item.webGmAbs / item.rspWeb * 100) : 0).toFixed(1)}%</span>
+                                                    </td>
                                                     <td className="px-4 py-3 text-right font-bold text-emerald-600 bg-emerald-50/30">{formatRupiah(item.webGmAbs)}</td>
                                                     <td className="px-4 py-3 text-right text-slate-400">{formatRupiah(item.hpp)}</td>
                                                     <td className="px-4 py-3 text-right bg-indigo-50/30 border-l border-indigo-50">
