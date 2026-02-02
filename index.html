@@ -289,7 +289,7 @@
                 const gmAbsBaru = rspBaru - feeNominalBaru - rHpp;
                 const gmPctBaru = rspBaru > 0 ? (gmAbsBaru / rspBaru) * 100 : 0;
                 const webGmAbs = rWeb - rHpp;
-                const webGmPct = rWeb > 0 ? (webGmAbs / rWeb) * 100 : 0;
+                const webGmPct = rWeb > 0 ? ((rWeb - rHpp) / rWeb) * 100 : 0;
 
                 let maxDiscountSafe = 0;
                 if (rspMpSuggest > 0) maxDiscountSafe = ((rspMpSuggest - rWeb) / rspMpSuggest) * 100;
@@ -489,7 +489,8 @@
                     }
 
                     // Calculation for new column GM Web %
-                    const webGmPercent = item.rspWeb > 0 ? (item.webGmAbs / item.rspWeb * 100).toFixed(1) + '%' : '0%';
+                    // Update formula: (RSP Web - HPP) / RSP Web
+                    const webGmPercent = item.rspWeb > 0 ? ((item.rspWeb - item.hpp) / item.rspWeb * 100).toFixed(1) + '%' : '0%';
 
                     return {
                         "ID": item.id,
@@ -821,7 +822,7 @@
                                                     </td>
                                                     <td className="px-4 py-3 text-right font-medium text-slate-700">{formatRupiah(item.rspWeb)}</td>
                                                     <td className="px-4 py-3 text-center bg-emerald-50/30 border-l border-emerald-50">
-                                                        <span className="font-bold text-emerald-700">{(item.rspWeb > 0 ? (item.webGmAbs / item.rspWeb * 100) : 0).toFixed(1)}%</span>
+                                                        <span className="font-bold text-emerald-700">{(item.rspWeb > 0 ? ((item.rspWeb - item.hpp) / item.rspWeb * 100) : 0).toFixed(1)}%</span>
                                                     </td>
                                                     <td className="px-4 py-3 text-right font-bold text-emerald-600 bg-emerald-50/30">{formatRupiah(item.webGmAbs)}</td>
                                                     <td className="px-4 py-3 text-right text-slate-400">{formatRupiah(item.hpp)}</td>
