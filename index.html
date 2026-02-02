@@ -70,6 +70,7 @@
 
         const BRAND_TARGETS = { "HEYMALE": 57, "HEYLOCAL": 42, "BOONABOO": 44, "SHUWA": 42 };
 
+        // DB 1: WOMEN'S FASHION
         const GENERAL_COMPETITOR_DB = {
             "SCARFS": [{ brand: "Buttonscarves", price: 425000 }, { brand: "Nada Puspita", price: 335000 }, { brand: "Kami Idea", price: 350000 }, { brand: "Heaven Light", price: 175000 }],
             "BAGS": [{ brand: "Buttonscarves", price: 1800000 }, { brand: "Kami Idea", price: 950000 }, { brand: "Wearing Klamby", price: 850000 }, { brand: "Nada Puspita", price: 799000 }],
@@ -83,6 +84,7 @@
             "INNER WEAR": [{ brand: "Buttonscarves", price: 125000 }, { brand: "Nada Puspita", price: 85000 }, { brand: "Heaven Light", price: 55000 }, { brand: "Kami Idea", price: 75000 }]
         };
 
+        // DB 2: MEN'S FASHION
         const HEYMALE_COMPETITOR_DB = {
             "ACCESSORIES": [{ brand: "Eiger", price: 149000 }, { brand: "Kalibre", price: 199000 }, { brand: "Bodypack", price: 125000 }, { brand: "Roughneck 1991", price: 89000 }],
             "JACKETS": [{ brand: "Erigo", price: 350000 }, { brand: "Roughneck 1991", price: 299000 }, { brand: "Maternal Disaster", price: 420000 }, { brand: "Sch.", price: 450000 }],
@@ -92,6 +94,41 @@
             "POLO SHIRTS": [{ brand: "Crocodile (Local)", price: 250000 }, { brand: "M231", price: 149000 }, { brand: "Platini", price: 120000 }, { brand: "Uniqlo", price: 299000 }],
             "SHIRTS": [{ brand: "M231", price: 189000 }, { brand: "Alisan", price: 160000 }, { brand: "Platini", price: 150000 }, { brand: "Fargo", price: 175000 }],
             "TEES": [{ brand: "Aerostreet", price: 79000 }, { brand: "Erigo", price: 99000 }, { brand: "Maternal", price: 165000 }, { brand: "Roughneck", price: 88000 }]
+        };
+
+        // DB 3: MOM & KIDS (BOONABOO)
+        const BOONABOO_COMPETITOR_DB = {
+            "ACCESSORIES": [
+                { brand: "Smiggle (Keyrings)", price: 150000 },
+                { brand: "Gabag", price: 120000 },
+                { brand: "Papamama", price: 80000 },
+                { brand: "Skip Hop", price: 200000 }
+            ],
+            "COOLER BAGS": [
+                { brand: "GabaG", price: 450000 },
+                { brand: "Natural Moms", price: 320000 },
+                { brand: "BKA Zella", price: 320000 },
+                { brand: "Allegra", price: 299000 }
+            ],
+            "DIAPER BAGS": [
+                { brand: "Papamama Clio", price: 289000 },
+                { brand: "Mooimom 2-Ways", price: 499000 },
+                { brand: "Natural Moms", price: 655000 },
+                { brand: "Colorland", price: 450000 },
+                { brand: "Tweeling & Co", price: 399000 }
+            ],
+            "KIDS BACKPACK": [
+                { brand: "Smiggle Junior", price: 475000 },
+                { brand: "Gabag Kids", price: 250000 },
+                { brand: "Skip Hop Zoo", price: 350000 },
+                { brand: "Wiggle", price: 200000 }
+            ],
+            "NURSING APRONS": [
+                { brand: "Mooimom", price: 199000 },
+                { brand: "CuddleMe Cape", price: 95000 },
+                { brand: "Momi Homi", price: 50000 },
+                { brand: "Baby Loop", price: 125000 }
+            ]
         };
 
         const formatRupiah = (val) => {
@@ -140,7 +177,12 @@
             };
             const [pricingForm, setPricingForm] = useState(initialFormState);
 
-            const activeCompetitorDB = pricingForm.brand === 'HEYMALE' ? HEYMALE_COMPETITOR_DB : GENERAL_COMPETITOR_DB;
+            // LOGIC PILIH DB KOMPETITOR
+            const activeCompetitorDB = useMemo(() => {
+                if (pricingForm.brand === 'HEYMALE') return HEYMALE_COMPETITOR_DB;
+                if (pricingForm.brand === 'BOONABOO') return BOONABOO_COMPETITOR_DB;
+                return GENERAL_COMPETITOR_DB;
+            }, [pricingForm.brand]);
 
             // HELPER: Convert string from Sheet (e.g. "100.000") back to number (100000)
             const parseSheetNumber = (val) => {
@@ -339,7 +381,11 @@
 
             const handleCategoryChange = (e) => {
                 const selectedCat = e.target.value;
-                const currentDB = pricingForm.brand === 'HEYMALE' ? HEYMALE_COMPETITOR_DB : GENERAL_COMPETITOR_DB;
+                // activeCompetitorDB is now calculated by useMemo, so we access the DB directly
+                let currentDB = GENERAL_COMPETITOR_DB;
+                if (pricingForm.brand === 'HEYMALE') currentDB = HEYMALE_COMPETITOR_DB;
+                if (pricingForm.brand === 'BOONABOO') currentDB = BOONABOO_COMPETITOR_DB;
+
                 const compData = currentDB[selectedCat];
                 let avgPrice = '';
                 let notes = '';
@@ -489,7 +535,6 @@
                     }
 
                     // Calculation for new column GM Web %
-                    // Update formula: (RSP Web - HPP) / RSP Web
                     const webGmPercent = item.rspWeb > 0 ? ((item.rspWeb - item.hpp) / item.rspWeb * 100).toFixed(1) + '%' : '0%';
 
                     return {
