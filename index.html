@@ -45,6 +45,7 @@
         const { useState, useEffect, useMemo, useCallback } = React;
 
         // --- CONFIGURATION ---
+        // URL Google Apps Script Anda
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz20x9-UZbamv9t0vmpaKnjrk0tkalFXmp15V-ny4Ojlrb1NGZJaad3bH05tW_wf_QZUw/exec"; 
 
         // --- ICON COMPONENTS ---
@@ -161,9 +162,11 @@
             };
 
             const parseSheetPercent = (val) => {
-                if (typeof val === 'number') return val;
+                if (typeof val === 'number') {
+                    return (Math.abs(val) <= 2.0) ? val * 100 : val;
+                }
                 if (!val) return 0;
-                const cleanStr = val.toString().replace('%', '');
+                const cleanStr = val.toString().replace('%', '').replace(',', '.').trim();
                 return parseFloat(cleanStr) || 0;
             };
 
@@ -192,6 +195,8 @@
                                 rspMpSuggest: parseSheetNumber(item.rspMpSuggest),
                                 gmAbsMp: parseSheetNumber(item.gmAbsMp),
                                 gmPctMp: parseSheetPercent(item.gmPctMp),
+                                // FIX: Apply parseSheetPercent to maxDiscountSafe as well
+                                maxDiscountSafe: parseSheetPercent(item.maxDiscountSafe),
                                 profitAtFloor: parseSheetNumber(item.profitAtFloor)
                             }));
                             setPricingList(processedData);
